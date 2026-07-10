@@ -1,0 +1,363 @@
+// ============================================================================
+// Neon Drip Coffee — Prisma Schema
+// "Fueled by Caffeine, Driven by Code."
+//
+// Cubre los 3 flujos de negocio del proyecto:
+//   1. Click & Collect  -> Order / OrderItem
+//   2. Bean Deploy       -> SubscriptionPlan / Subscription / SubscriptionDelivery
+//   3. Cyber-Pods        -> CyberPod / Reservation
+//
+// Pagos: modelo Payment compartido entre Order y Reservation.
+// Las Subscription se facturan de forma recurrente directamente vía Stripe
+// (stripeSubscriptionId), por eso no usan el modelo Payment fila por fila.
+//
+// NOTA sobre datasource: usamos DATABASE_URL (conexión pooled de Supabase,
+// para el uso normal de la app) y DIRECT_URL (conexión directa, que Prisma
+// necesita puntualmente para correr migraciones). Ambas se definen en .env
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  BARISTA
+  ADMIN
+}
+
+enum ProductCategory {
+  COFFEE
+  PASTRY
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM
+  DARK
+}
+
+enum GrindType {
+  WHOLE_BEAN
+  ESPRESSO
+  FILTER
+  FRENCH_PRESS
+  MOKA
+  NOT_APPLICABLE // repostería / snacks
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+}
+
+enum SubscriptionFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  PAST_DUE
+}
+
+enum DeliveryStatus {
+  SCHEDULED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  SKIPPED
+  FAILED
+}
+
+enum PodType {
+  INDIVIDUAL
+  GROUP
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentProvider {
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// ----------------------------------------------------------------------------
+// USUARIOS
+// ----------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String? // null si el login es solo con OAuth
+  phone        String?
+  image        String?
+  role         Role      @default(CUSTOMER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  addresses     Address[]
+  orders        Order[]
+  subscriptions Subscription[]
+  reservations  Reservation[]
+
+  @@index([email])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String? // "Casa", "Oficina"
+  street    String
+  number    String
+  city      String
+  state     String
+  zipCode   String
+  country   String   @default("Uruguay")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// CATÁLOGO — Core Brews & Byte-Sized Bites
+// ----------------------------------------------------------------------------
+
+model Product {
+  id             String          @id @default(cuid())
+  name           String // "Neon Ethiopia", "Segfault Croissant"
+  slug           String          @unique
+  description    String
+  category       ProductCategory
+  roastLevel     RoastLevel? // solo aplica a COFFEE
+  intensity      Int? // escala 1-5, estilo tueste/intensidad
+  origin         String? // "Huila, Colombia" -> trazabilidad
+  tastingNotes   String? // "Chocolate, cítricos, caramelo"
+  basePrice      Decimal         @db.Decimal(10, 2)
+  imageUrl       String?
+  isSubscribable Boolean         @default(false) // elegible para Bean Deploy
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  variants               ProductVariant[]
+  orderItems             OrderItem[]
+  subscriptionDeliveries SubscriptionDelivery[]
+
+  @@index([category])
+}
+
+model ProductVariant {
+  id        String    @id @default(cuid())
+  productId String
+  name      String // "250g", "500g", "Individual"
+  grindType GrindType @default(NOT_APPLICABLE)
+  weightGr  Int? // solo café en grano/molido
+  price     Decimal   @db.Decimal(10, 2)
+  sku       String    @unique
+  stock     Int       @default(0)
+  isActive  Boolean   @default(true)
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
+}
+
+// ----------------------------------------------------------------------------
+// CLICK & COLLECT — Pedidos
+// ----------------------------------------------------------------------------
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique // generar ej: "ND-2026-0001" en la app
+  userId      String
+  status      OrderStatus @default(PENDING)
+  subtotal    Decimal     @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
+  pickupEta   DateTime? // "retira en barra en 10 minutos"
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id])
+  items   OrderItem[]
+  payment Payment?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id               String  @id @default(cuid())
+  orderId          String
+  productId        String
+  productVariantId String
+  quantity         Int
+  unitPrice        Decimal @db.Decimal(10, 2) // snapshot al momento de compra
+  subtotal         Decimal @db.Decimal(10, 2)
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id])
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@index([orderId])
+}
+
+// ----------------------------------------------------------------------------
+// BEAN DEPLOY — Suscripción de café
+// ----------------------------------------------------------------------------
+
+model SubscriptionPlan {
+  id          String                @id @default(cuid())
+  name        String // "Explorer", "Power User", "Full Stack"
+  description String
+  frequency   SubscriptionFrequency
+  weightGr    Int // cantidad de café por envío
+  price       Decimal               @db.Decimal(10, 2)
+  isActive    Boolean               @default(true)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String              @id @default(cuid())
+  userId               String
+  planId               String
+  addressId            String
+  status               SubscriptionStatus  @default(ACTIVE)
+  roastPreference      RoastLevel? // null = "sorpresa del barista"
+  grindPreference      GrindType           @default(WHOLE_BEAN)
+  stripeSubscriptionId String?             @unique
+  currentPeriodStart   DateTime            @default(now())
+  currentPeriodEnd     DateTime
+  cancelledAt          DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  user       User                   @relation(fields: [userId], references: [id])
+  plan       SubscriptionPlan       @relation(fields: [planId], references: [id])
+  address    Address                @relation(fields: [addressId], references: [id])
+  deliveries SubscriptionDelivery[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SubscriptionDelivery {
+  id             String         @id @default(cuid())
+  subscriptionId String
+  productId      String? // café elegido por el barista ese ciclo
+  status         DeliveryStatus @default(SCHEDULED)
+  scheduledFor   DateTime
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  trackingCode   String?
+  createdAt      DateTime       @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id])
+
+  @@index([subscriptionId])
+}
+
+// ----------------------------------------------------------------------------
+// CYBER-PODS — Coworking
+// ----------------------------------------------------------------------------
+
+model CyberPod {
+  id         String   @id @default(cuid())
+  name       String // "Cyber-Pod Alpha", "War Room Delta"
+  type       PodType
+  capacity   Int
+  hourlyRate Decimal  @db.Decimal(10, 2)
+  amenities  String[] // ["Fibra simétrica 1Gbps", "Monitor 27\"", "Standing desk"]
+  imageUrl   String?
+  isActive   Boolean  @default(true)
+
+  reservations Reservation[]
+}
+
+model Reservation {
+  id         String             @id @default(cuid())
+  userId     String
+  cyberPodId String
+  status     ReservationStatus  @default(PENDING)
+  startTime  DateTime
+  endTime    DateTime
+  attendees  Int                @default(1)
+  totalPrice Decimal            @db.Decimal(10, 2)
+  notes      String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  cyberPod CyberPod @relation(fields: [cyberPodId], references: [id])
+  payment  Payment?
+
+  // NOTA sobre solapamiento de reservas:
+  // Prisma no soporta "exclusion constraints" nativamente. Este índice
+  // acelera las queries de disponibilidad, pero la validación real de que
+  // no existan reservas solapadas para el mismo pod debe hacerse:
+  //   a) a nivel de aplicación, dentro de una transacción
+  //      (SELECT ... FOR UPDATE simulado con $transaction), o
+  //   b) reforzando con una migración raw SQL que agregue un
+  //      EXCLUDE USING gist (cyberPodId WITH =, tsrange(startTime,endTime) WITH &&)
+  //      usando la extensión btree_gist de Postgres.
+  @@index([cyberPodId, startTime, endTime])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// PAGOS
+// ----------------------------------------------------------------------------
+
+model Payment {
+  id                    String          @id @default(cuid())
+  orderId               String?         @unique
+  reservationId         String?         @unique
+  provider              PaymentProvider @default(STRIPE)
+  status                PaymentStatus   @default(PENDING)
+  amount                Decimal         @db.Decimal(10, 2)
+  currency              String          @default("USD")
+  stripePaymentIntentId String?         @unique
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  order       Order?       @relation(fields: [orderId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+}
