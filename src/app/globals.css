@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Tailwind v4 no usa tailwind.config.js para esto — los "design tokens"
+ * (colores, fuentes) se definen directo acá, dentro de @theme inline.
+ * Cada variable que empieza con --color-X se convierte automáticamente
+ * en clases de utilidad: --color-neon-cyan te da bg-neon-cyan,
+ * text-neon-cyan, border-neon-cyan, etc.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Fondo y superficies (paleta oscura antracita, según el concepto de marca) */
+  --color-void: #0a0a0f;
+  --color-surface: #14141f;
+  --color-surface-hover: #1c1c2a;
+  --color-line: #2a2a3d;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Texto */
+  --color-ink: #e8e8f2;
+  --color-dim: #8b8ba3;
+
+  /* Acentos neón (moradas, cian, rosa — como pide el concepto original) */
+  --color-neon-purple: #a855f7;
+  --color-neon-cyan: #22d3ee;
+  --color-neon-pink: #ec4899;
+
+  /* Fuentes (las variables reales las define layout.tsx con next/font) */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-void);
+  color: var(--color-ink);
 }

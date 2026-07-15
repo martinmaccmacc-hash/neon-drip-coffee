@@ -5,10 +5,11 @@
 // bolsas de café para Bean Deploy, repostería, Cyber-Pods y planes de
 // suscripción. Se corre con: npx prisma db seed
 //
-// Usamos `upsert` (en vez de `create`) en cada producto: upsert busca primero
-// si ya existe una fila con ese valor único (el slug, en el caso de Product),
-// y si existe NO la duplica — solo la deja como está. Esto hace que puedas
-// correr este script mil veces sin llenar la base de datos de copias.
+// Usamos `upsert` en cada producto: busca primero si ya existe una fila con
+// ese valor único (el slug, en el caso de Product), y si existe, la
+// ACTUALIZA con los datos actuales de este archivo (antes esto no pasaba,
+// era un bug: el `update` estaba vacío y por eso los precios viejos no se
+// reemplazaban al re-correr el seed. Ya está corregido).
 // ============================================================================
 
 import {
@@ -52,6 +53,7 @@ type ProductSeed = {
 
 // ----------------------------------------------------------------------------
 // 1. CORE BREWS — bebidas preparadas, se piden en el mostrador (Click & Collect)
+// Precios en pesos uruguayos (UYU). Tamaños en mililitros (ml).
 // ----------------------------------------------------------------------------
 
 const coreBrews: ProductSeed[] = [
@@ -63,8 +65,8 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.DARK,
     intensity: 5,
-    basePrice: 3.2,
-    variants: [{ name: "Individual (2oz)", price: 3.2, sku: "DRK-001-A" }],
+    basePrice: 130,
+    variants: [{ name: "Individual (60ml)", price: 130, sku: "DRK-001-A" }],
   },
   {
     slug: "cyber-latte",
@@ -74,11 +76,11 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.MEDIUM,
     intensity: 3,
-    basePrice: 4.5,
+    basePrice: 190,
     variants: [
-      { name: "8oz", price: 4.5, sku: "DRK-002-A" },
-      { name: "12oz", price: 5.2, sku: "DRK-002-B" },
-      { name: "16oz", price: 5.9, sku: "DRK-002-C" },
+      { name: "250ml", price: 190, sku: "DRK-002-A" },
+      { name: "350ml", price: 220, sku: "DRK-002-B" },
+      { name: "450ml", price: 250, sku: "DRK-002-C" },
     ],
   },
   {
@@ -89,10 +91,10 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.MEDIUM,
     intensity: 3,
-    basePrice: 4.8,
+    basePrice: 210,
     variants: [
-      { name: "12oz", price: 4.8, sku: "DRK-003-A" },
-      { name: "16oz", price: 5.5, sku: "DRK-003-B" },
+      { name: "350ml", price: 210, sku: "DRK-003-A" },
+      { name: "450ml", price: 240, sku: "DRK-003-B" },
     ],
   },
   {
@@ -103,10 +105,10 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.DARK,
     intensity: 4,
-    basePrice: 4.2,
+    basePrice: 180,
     variants: [
-      { name: "8oz", price: 4.2, sku: "DRK-004-A" },
-      { name: "12oz", price: 4.9, sku: "DRK-004-B" },
+      { name: "250ml", price: 180, sku: "DRK-004-A" },
+      { name: "350ml", price: 210, sku: "DRK-004-B" },
     ],
   },
   {
@@ -117,10 +119,10 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.MEDIUM,
     intensity: 3,
-    basePrice: 4.8,
+    basePrice: 200,
     variants: [
-      { name: "8oz", price: 4.8, sku: "DRK-005-A" },
-      { name: "12oz", price: 5.5, sku: "DRK-005-B" },
+      { name: "250ml", price: 200, sku: "DRK-005-A" },
+      { name: "350ml", price: 230, sku: "DRK-005-B" },
     ],
   },
   {
@@ -131,8 +133,8 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.DARK,
     intensity: 4,
-    basePrice: 5.5,
-    variants: [{ name: "Individual", price: 5.5, sku: "DRK-006-A" }],
+    basePrice: 240,
+    variants: [{ name: "Individual", price: 240, sku: "DRK-006-A" }],
   },
   {
     slug: "kernel-panic-cortado",
@@ -142,8 +144,8 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.DARK,
     intensity: 4,
-    basePrice: 4.0,
-    variants: [{ name: "Individual (4oz)", price: 4.0, sku: "DRK-007-A" }],
+    basePrice: 150,
+    variants: [{ name: "Individual (120ml)", price: 150, sku: "DRK-007-A" }],
   },
   {
     slug: "git-blame-frappe",
@@ -153,16 +155,17 @@ const coreBrews: ProductSeed[] = [
     category: ProductCategory.COFFEE,
     roastLevel: RoastLevel.LIGHT,
     intensity: 2,
-    basePrice: 5.2,
+    basePrice: 220,
     variants: [
-      { name: "12oz", price: 5.2, sku: "DRK-008-A" },
-      { name: "16oz", price: 5.9, sku: "DRK-008-B" },
+      { name: "350ml", price: 220, sku: "DRK-008-A" },
+      { name: "450ml", price: 250, sku: "DRK-008-B" },
     ],
   },
 ];
 
 // ----------------------------------------------------------------------------
 // 2. BEAN DEPLOY — bolsas de café en grano/molido, para suscripción y retail
+// El peso sigue en gramos (es una medida de masa, no de volumen — no cambia).
 // ----------------------------------------------------------------------------
 
 const beanBags: ProductSeed[] = [
@@ -176,12 +179,12 @@ const beanBags: ProductSeed[] = [
     intensity: 2,
     origin: "Yirgacheffe, Etiopía",
     tastingNotes: "Floral, cítricos, té negro",
-    basePrice: 14.0,
+    basePrice: 590,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 14.0, sku: "BAG-001-A" },
-      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 14.0, sku: "BAG-001-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 25.0, sku: "BAG-001-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 590, sku: "BAG-001-A" },
+      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 590, sku: "BAG-001-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 1050, sku: "BAG-001-C" },
     ],
   },
   {
@@ -194,12 +197,12 @@ const beanBags: ProductSeed[] = [
     intensity: 3,
     origin: "Huila, Colombia",
     tastingNotes: "Chocolate, caramelo, nuez",
-    basePrice: 13.0,
+    basePrice: 520,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 13.0, sku: "BAG-002-A" },
-      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 13.0, sku: "BAG-002-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 23.0, sku: "BAG-002-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 520, sku: "BAG-002-A" },
+      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 520, sku: "BAG-002-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 950, sku: "BAG-002-C" },
     ],
   },
   {
@@ -212,12 +215,12 @@ const beanBags: ProductSeed[] = [
     intensity: 5,
     origin: "Sumatra, Indonesia",
     tastingNotes: "Tierra húmeda, especias, cuerpo intenso",
-    basePrice: 13.5,
+    basePrice: 540,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 13.5, sku: "BAG-003-A" },
-      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 13.5, sku: "BAG-003-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 24.0, sku: "BAG-003-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 540, sku: "BAG-003-A" },
+      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 540, sku: "BAG-003-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 980, sku: "BAG-003-C" },
     ],
   },
   {
@@ -229,12 +232,12 @@ const beanBags: ProductSeed[] = [
     intensity: 3,
     origin: "Cerrado, Brasil",
     tastingNotes: "Chocolate con leche, avellanas",
-    basePrice: 12.0,
+    basePrice: 480,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 12.0, sku: "BAG-004-A" },
-      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 12.0, sku: "BAG-004-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 21.0, sku: "BAG-004-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 480, sku: "BAG-004-A" },
+      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 480, sku: "BAG-004-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 870, sku: "BAG-004-C" },
     ],
   },
   {
@@ -246,12 +249,12 @@ const beanBags: ProductSeed[] = [
     intensity: 2,
     origin: "Nyeri, Kenia",
     tastingNotes: "Frutos rojos, vino, acidez brillante",
-    basePrice: 15.5,
+    basePrice: 650,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 15.5, sku: "BAG-005-A" },
-      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 15.5, sku: "BAG-005-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 28.0, sku: "BAG-005-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 650, sku: "BAG-005-A" },
+      { name: "250g - Molido (Filtro)", grindType: GrindType.FILTER, weightGr: 250, price: 650, sku: "BAG-005-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 1180, sku: "BAG-005-C" },
     ],
   },
   {
@@ -264,12 +267,12 @@ const beanBags: ProductSeed[] = [
     intensity: 4,
     origin: "Antigua, Guatemala",
     tastingNotes: "Cacao, especias, final ahumado",
-    basePrice: 13.8,
+    basePrice: 550,
     isSubscribable: true,
     variants: [
-      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 13.8, sku: "BAG-006-A" },
-      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 13.8, sku: "BAG-006-B" },
-      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 24.5, sku: "BAG-006-C" },
+      { name: "250g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 250, price: 550, sku: "BAG-006-A" },
+      { name: "250g - Molido (Espresso)", grindType: GrindType.ESPRESSO, weightGr: 250, price: 550, sku: "BAG-006-B" },
+      { name: "500g - Grano entero", grindType: GrindType.WHOLE_BEAN, weightGr: 500, price: 990, sku: "BAG-006-C" },
     ],
   },
 ];
@@ -285,16 +288,16 @@ const pastries: ProductSeed[] = [
     description:
       "Brownie de chocolate belga con hilos de chocolate rosa y polvo de oro comestible.",
     category: ProductCategory.PASTRY,
-    basePrice: 4.5,
-    variants: [{ name: "Individual", price: 4.5, sku: "PST-001-A" }],
+    basePrice: 190,
+    variants: [{ name: "Individual", price: 190, sku: "PST-001-A" }],
   },
   {
     slug: "the-cookie-exception",
     name: "The Cookie Exception",
     description: "Galleta gigante de chispas de tres tipos de chocolate, servida tibia.",
     category: ProductCategory.PASTRY,
-    basePrice: 3.8,
-    variants: [{ name: "Individual", price: 3.8, sku: "PST-002-A" }],
+    basePrice: 160,
+    variants: [{ name: "Individual", price: 160, sku: "PST-002-A" }],
   },
   {
     slug: "opensource-toast",
@@ -302,87 +305,90 @@ const pastries: ProductSeed[] = [
     description:
       "Tostada de masa madre con aguacate machacado, huevo ponchado, sésamo negro y un toque de chile.",
     category: ProductCategory.PASTRY,
-    basePrice: 6.5,
-    variants: [{ name: "Individual", price: 6.5, sku: "PST-003-A" }],
+    basePrice: 280,
+    variants: [{ name: "Individual", price: 280, sku: "PST-003-A" }],
   },
   {
     slug: "stack-trace-scone",
     name: "Stack Trace Scone",
     description: "Scone de manteca con arándanos: cada capa cuenta una parte del error.",
     category: ProductCategory.PASTRY,
-    basePrice: 3.9,
-    variants: [{ name: "Individual", price: 3.9, sku: "PST-004-A" }],
+    basePrice: 165,
+    variants: [{ name: "Individual", price: 165, sku: "PST-004-A" }],
   },
   {
     slug: "merge-conflict-muffin",
     name: "Merge Conflict Muffin",
     description: "Muffin de chocolate y arándanos que decidieron no resolver sus diferencias.",
     category: ProductCategory.PASTRY,
-    basePrice: 4.0,
-    variants: [{ name: "Individual", price: 4.0, sku: "PST-005-A" }],
+    basePrice: 170,
+    variants: [{ name: "Individual", price: 170, sku: "PST-005-A" }],
   },
   {
     slug: "404-croissant-not-found",
     name: "404 Croissant Not Found",
     description: "Croissant de manteca clásico. Simplemente no lo vas a encontrar en ningún otro lado.",
     category: ProductCategory.PASTRY,
-    basePrice: 3.5,
-    variants: [{ name: "Individual", price: 3.5, sku: "PST-006-A" }],
+    basePrice: 150,
+    variants: [{ name: "Individual", price: 150, sku: "PST-006-A" }],
   },
   {
     slug: "infinite-loop-donut",
     name: "Infinite Loop Donut",
     description: "Dona glaseada con chispas de colores neón. Una vez que empezás, no parás.",
     category: ProductCategory.PASTRY,
-    basePrice: 3.6,
-    variants: [{ name: "Individual", price: 3.6, sku: "PST-007-A" }],
+    basePrice: 155,
+    variants: [{ name: "Individual", price: 155, sku: "PST-007-A" }],
   },
   {
     slug: "buffer-overflow-bagel",
     name: "Buffer Overflow Bagel",
     description: "Bagel con queso crema, tanto que se desborda por los costados.",
     category: ProductCategory.PASTRY,
-    basePrice: 4.8,
-    variants: [{ name: "Individual", price: 4.8, sku: "PST-008-A" }],
+    basePrice: 210,
+    variants: [{ name: "Individual", price: 210, sku: "PST-008-A" }],
   },
 ];
 
 // ----------------------------------------------------------------------------
-// Función reutilizable: crea (o actualiza) un producto y todas sus variantes
+// Función reutilizable: crea O ACTUALIZA un producto y todas sus variantes.
+// Con upsert + update real, correr este script de nuevo con precios nuevos
+// SÍ los va a reflejar en la base de datos (antes no lo hacía).
 // ----------------------------------------------------------------------------
 
 async function seedProducts(products: ProductSeed[]) {
   for (const p of products) {
+    const productData = {
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      roastLevel: p.roastLevel,
+      intensity: p.intensity,
+      origin: p.origin,
+      tastingNotes: p.tastingNotes,
+      basePrice: p.basePrice,
+      isSubscribable: p.isSubscribable ?? false,
+    };
+
     const product = await prisma.product.upsert({
       where: { slug: p.slug },
-      update: {},
-      create: {
-        slug: p.slug,
-        name: p.name,
-        description: p.description,
-        category: p.category,
-        roastLevel: p.roastLevel,
-        intensity: p.intensity,
-        origin: p.origin,
-        tastingNotes: p.tastingNotes,
-        basePrice: p.basePrice,
-        isSubscribable: p.isSubscribable ?? false,
-      },
+      update: productData,
+      create: { slug: p.slug, ...productData },
     });
 
     for (const v of p.variants) {
+      const variantData = {
+        name: v.name,
+        grindType: v.grindType ?? GrindType.NOT_APPLICABLE,
+        weightGr: v.weightGr,
+        price: v.price,
+        stock: v.stock ?? 50,
+      };
+
       await prisma.productVariant.upsert({
         where: { sku: v.sku },
-        update: {},
-        create: {
-          productId: product.id,
-          name: v.name,
-          grindType: v.grindType ?? GrindType.NOT_APPLICABLE,
-          weightGr: v.weightGr,
-          price: v.price,
-          sku: v.sku,
-          stock: v.stock ?? 50,
-        },
+        update: variantData,
+        create: { productId: product.id, sku: v.sku, ...variantData },
       });
     }
 
@@ -392,38 +398,40 @@ async function seedProducts(products: ProductSeed[]) {
 
 // ----------------------------------------------------------------------------
 // 4. CYBER-PODS — espacios de coworking
+//
+// Nota: usamos deleteMany + create (en vez de upsert) porque CyberPod no
+// tiene un campo único como "slug" para identificarlo. Esto borra y vuelve
+// a crear los pods cada vez que corrés el seed — seguro en desarrollo
+// (todavía no hay reservas reales de usuarios apuntando a estos pods), pero
+// NO es un patrón que harías así en producción.
 // ----------------------------------------------------------------------------
 
 async function seedCyberPods() {
-  const existing = await prisma.cyberPod.count();
-  if (existing > 0) {
-    console.log("  (ya existen Cyber-Pods, se omite)");
-    return;
-  }
+  await prisma.cyberPod.deleteMany({});
 
   const pods = [
     {
       name: "Cyber-Pod Alpha",
       type: PodType.INDIVIDUAL,
       capacity: 1,
-      hourlyRate: 8.0,
+      hourlyRate: 350,
       amenities: ["Fibra simétrica 1Gbps", 'Monitor 27" 4K', "Silla ergonómica"],
     },
     {
       name: "Cyber-Pod Beta",
       type: PodType.INDIVIDUAL,
       capacity: 1,
-      hourlyRate: 8.0,
+      hourlyRate: 350,
       amenities: ["Fibra simétrica 1Gbps", 'Monitor 27" 4K', "Standing desk"],
     },
     {
       name: "War Room Gamma",
       type: PodType.GROUP,
       capacity: 4,
-      hourlyRate: 22.0,
+      hourlyRate: 950,
       amenities: [
         "Fibra simétrica 1Gbps",
-        'TV 55" para pantalla compartida',
+        '4 monitores individuales 27" (uno por persona)',
         "Pizarra digital",
         "4 sillas ergonómicas",
       ],
@@ -438,14 +446,11 @@ async function seedCyberPods() {
 
 // ----------------------------------------------------------------------------
 // 5. PLANES DE SUSCRIPCIÓN — Bean Deploy
+// Mismo criterio que CyberPod: sin campo único, usamos deleteMany + create.
 // ----------------------------------------------------------------------------
 
 async function seedSubscriptionPlans() {
-  const existing = await prisma.subscriptionPlan.count();
-  if (existing > 0) {
-    console.log("  (ya existen planes, se omite)");
-    return;
-  }
+  await prisma.subscriptionPlan.deleteMany({});
 
   const plans = [
     {
@@ -453,21 +458,21 @@ async function seedSubscriptionPlans() {
       description: "Perfecto para probar sabores nuevos cada mes.",
       frequency: SubscriptionFrequency.MONTHLY,
       weightGr: 250,
-      price: 16.9,
+      price: 690,
     },
     {
       name: "Power User",
       description: "Para quienes no pueden vivir sin su dosis quincenal.",
       frequency: SubscriptionFrequency.BIWEEKLY,
       weightGr: 250,
-      price: 15.9,
+      price: 650,
     },
     {
       name: "Full Stack",
       description: "El plan definitivo: más café, más seguido, mejor precio por gramo.",
       frequency: SubscriptionFrequency.WEEKLY,
       weightGr: 500,
-      price: 28.9,
+      price: 1200,
     },
   ];
 
