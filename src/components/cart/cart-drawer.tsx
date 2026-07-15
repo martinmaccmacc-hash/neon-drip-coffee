@@ -1,23 +1,27 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ShoppingBag, X } from "lucide-react";
 import { useCartStore, useCartTotal } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import { CartItem } from "./cart-item";
 
 export function CartDrawer() {
+  const router = useRouter();
   const isOpen = useCartStore((s) => s.isOpen);
   const closeCart = useCartStore((s) => s.closeCart);
   const items = useCartStore((s) => s.items);
   const total = useCartTotal();
 
-  // Si está cerrado, no renderizamos nada — más simple que manejar
-  // animaciones de apertura/cierre por ahora.
   if (!isOpen) return null;
+
+  function handleCheckout() {
+    closeCart();
+    router.push("/checkout");
+  }
 
   return (
     <>
-      {/* Fondo oscuro: al tocarlo, se cierra el carrito */}
       <div
         className="fixed inset-0 z-50 bg-void/70 backdrop-blur-sm"
         onClick={closeCart}
@@ -58,10 +62,7 @@ export function CartDrawer() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                // TODO: conectar con /checkout cuando construyamos esa página.
-                console.log("Ir a checkout con:", items);
-              }}
+              onClick={handleCheckout}
               className="w-full rounded-lg bg-neon-purple py-3 font-mono text-sm font-semibold uppercase tracking-wide text-void transition-transform hover:scale-[1.02] hover:bg-neon-pink"
             >
               Finalizar pedido
