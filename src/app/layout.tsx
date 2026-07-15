@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
 import { Orbitron, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Providers } from "./providers";
 import { Navbar } from "@/components/layout/navbar";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import "./globals.css";
 
-// Tres fuentes, tres roles distintos (no usamos la misma para todo):
-// - Orbitron: para títulos y precios. Geométrica y futurista, da la
-//   personalidad "synthwave" del local.
-// - IBM Plex Sans: para descripciones y texto largo, donde Orbitron
-//   sería difícil de leer.
-// - IBM Plex Mono: para SKUs, notas de sabor, badges — todo lo que
-//   queremos que se sienta "a código", coherente con la temática dev.
 const orbitron = Orbitron({
   subsets: ["latin"],
   variable: "--font-display",
@@ -44,12 +38,11 @@ export default function RootLayout({
       <body
         className={`${orbitron.variable} ${plexSans.variable} ${plexMono.variable} font-body antialiased`}
       >
-        <Navbar />
-        {children}
-        {/* CartDrawer vive acá, al mismo nivel que el contenido de la
-            página, para poder "flotar" por encima de cualquier página
-            sin importar en cuál esté parado el usuario. */}
-        <CartDrawer />
+        <Providers>
+          <Navbar />
+          {children}
+          <CartDrawer />
+        </Providers>
       </body>
     </html>
   );

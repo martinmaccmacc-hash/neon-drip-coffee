@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { useCartStore, useCartItemCount } from "@/store/cart-store";
 
 export function Navbar() {
-  // Truco para evitar el "hydration mismatch" explicado arriba: no
-  // mostramos el número del carrito hasta que el componente ya está
-  // corriendo en el navegador (después del primer render).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const itemCount = useCartItemCount();
   const toggleCart = useCartStore((s) => s.toggleCart);
+  const { data: session, status } = useSession();
 
   return (
     <nav className="sticky top-0 z-40 border-b border-line bg-void/90 backdrop-blur">
@@ -44,6 +43,35 @@ export function Navbar() {
           >
             Coworking
           </Link>
+
+          {status === "authenticated" ? (
+            <div className="flex items-center gap-4">
+              <Link
+                href="/account"
+                className="font-mono text-sm text-dim transition-colors hover:text-neon-cyan"
+              >
+                {session.user?.name?.split(" ")[0]}
+              </Link>
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="font-mono text-xs uppercase tracking-wide text-dim transition-colors hover:text-neon-pink"
+              >
+                Salir
+              </button>
+            </div>
+          ) : status === "unauthenticated" ? (
+            <Link
+              href="/login"
+              className="font-mono text-sm text-dim transition-colors hover:text-neon-cyan"
+            >
+              Ingresar
+            </Link>
+          ) : (
+            // status === "loading": placeholder invisible para que el
+            // layout no "salte" mientras Auth.js chequea la sesión.
+            <span className="w-16" />
+          )}
 
           <button
             type="button"
