@@ -1,0 +1,22 @@
+name: Keep Supabase Alive
+
+# Corre automáticamente domingos y miércoles a las 09:00 UTC — un margen
+# cómodo contra el límite de 7 días de inactividad de Supabase (si alguna
+# corrida llegara a fallar, la siguiente igual entra dentro del plazo).
+# "workflow_dispatch" además te deja correrlo a mano desde la pestaña
+# "Actions" de GitHub, para probarlo sin esperar al horario programado.
+on:
+  schedule:
+    - cron: "0 9 * * 0,3"
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase database
+        run: |
+          curl --fail --silent --show-error \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/Product?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"

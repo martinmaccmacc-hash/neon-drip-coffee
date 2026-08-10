@@ -1,21 +1,43 @@
 import { z } from "zod";
 
-// Zod valida la forma Y el contenido de los datos: no solo "esto es un
-// string", sino "esto es un string que además es un email válido", con
-// mensajes de error en español para mostrarle al usuario si algo falla.
-export const checkoutSchema = z.object({
-  customerName: z.string().min(2, "Ingresá tu nombre completo"),
-  customerEmail: z.string().email("Ingresá un email válido"),
-  customerPhone: z.string().min(8, "Ingresá un teléfono de contacto"),
-  notes: z.string().optional(),
-  items: z
-    .array(
+const subscriptionInCheckoutSchema = z.object({
+  planId: z.string(),
+  roastPreference: z.enum(["LIGHT", "MEDIUM", "DARK"]).nullable(),
+  grindPreference: z.enum([
+    "WHOLE_BEAN",
+    "ESPRESSO",
+    "FILTER",
+    "FRENCH_PRESS",
+    "MOKA",
+  ]),
+  address: z.object({
+    street: z.string().min(2),
+    number: z.string().min(1),
+    city: z.string().min(2),
+    state: z.string().min(2),
+    zipCode: z.string().min(4),
+    // Vienen solo si el usuario usó el buscador con mapa (Mapbox).
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+  }),
+});
+
+export const checkoutSchema = z
+  .object({
+    customerName: z.string().min(2, "Ingresá tu nombre completo"),
+    customerEmail: z.string().email("Ingresá un email válido"),
+    customerPhone: z.string().min(8, "Ingresá un teléfono de contacto"),
+    notes: z.string().optional(),
+    items: z.array(
       z.object({
         variantId: z.string(),
         quantity: z.number().int().positive(),
       })
-    )
-    .min(1, "El carrito está vacío"),
-});
+    ),
+    subscription: subscriptionInCheckoutSchema.nullable().optional(),
+  })
+  .refine((data) => data.items.length > 0 || !!data.subscription, {
+    message: "El carrito está vacío",
+  });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;

@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useCartStore, useCartTotal } from "@/store/cart-store";
 import { formatPrice } from "@/lib/utils";
 import { createOrder } from "@/actions/order.actions";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+
   const items = useCartStore((s) => s.items);
+  const pendingSubscription = useCartStore((s) => s.pendingSubscription);
   const clearCart = useCartStore((s) => s.clearCart);
   const total = useCartTotal();
 
@@ -22,6 +26,19 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Si el usuario ya está logueado, precargamos nombre/email desde su
+  // sesión — pero solo si el campo sigue vacío, para no pisar algo que ya
+  // haya empezado a escribir.
+  useEffect(() => {
+    if (session?.user) {
+      setForm((prev) => ({
+        ...prev,
+        customerName: prev.customerName || session.user?.name || "",
+        customerEmail: prev.customerEmail || session.user?.email || "",
+      }));
+    }
+  }, [session]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -33,6 +50,14 @@ export default function CheckoutPage() {
         variantId: item.variantId,
         quantity: item.quantity,
       })),
+      subscription: pendingSubscription
+        ? {
+            planId: pendingSubscription.planId,
+            roastPreference: pendingSubscription.roastPreference,
+            grindPreference: pendingSubscription.grindPreference,
+            address: pendingSubscription.address,
+          }
+        : null,
     });
 
     setIsSubmitting(false);
@@ -42,13 +67,19 @@ export default function CheckoutPage() {
       return;
     }
 
-    // El pedido ya está guardado en la base de datos: ahora sí podemos
-    // vaciar el carrito y mandar al usuario a la pantalla de confirmación.
+    const subscriptionName = pendingSubscription?.planName;
     clearCart();
-    router.push(`/checkout/success?order=${result.orderNumber}`);
+
+    const params = new URLSearchParams();
+    if (result.orderNumber) params.set("order", result.orderNumber);
+    if (result.subscriptionCreated && subscriptionName) {
+      params.set("subscriptionPlan", subscriptionName);
+    }
+
+    router.push(`/checkout/success?${params.toString()}`);
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !pendingSubscription) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-void px-6 text-center">
         <p className="font-mono text-dim">Tu carrito está vacío.</p>
@@ -71,6 +102,7 @@ export default function CheckoutPage() {
           <h1 className="mt-2 mb-6 font-display text-2xl font-bold text-ink">
             Resumen del pedido
           </h1>
+
           <div className="space-y-3">
             {items.map((item) => (
               <div
@@ -86,7 +118,23 @@ export default function CheckoutPage() {
                 </span>
               </div>
             ))}
+
+            {pendingSubscription && (
+              <div className="flex justify-between gap-4 border-b border-line pb-3 font-mono text-sm">
+                <span className="text-dim">
+                  <span className="text-neon-purple">[Suscripción]</span>{" "}
+                  {pendingSubscription.planName}{" "}
+                  <span className="text-xs">
+                    ({pendingSubscription.frequencyLabel})
+                  </span>
+                </span>
+                <span className="shrink-0 text-ink">
+                  {formatPrice(pendingSubscription.price)}
+                </span>
+              </div>
+            )}
           </div>
+
           <div className="mt-6 flex justify-between font-display text-xl font-bold">
             <span className="text-ink">Total</span>
             <span className="text-neon-cyan">{formatPrice(total)}</span>

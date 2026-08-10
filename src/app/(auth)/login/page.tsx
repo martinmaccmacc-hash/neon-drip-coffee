@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/account";
+
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +32,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/account");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -53,9 +56,17 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
-            Contraseña
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block font-mono text-xs text-dim">
+              Contraseña
+            </label>
+            <Link
+              href="/forgot-password"
+              className="font-mono text-xs text-neon-cyan hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
           <input
             type="password"
             value={form.password}
@@ -82,5 +93,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

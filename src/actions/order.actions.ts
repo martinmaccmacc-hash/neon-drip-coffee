@@ -1,16 +1,25 @@
 "use server";
 
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validations/order.schema";
+import type { SubscriptionFrequency } from "@prisma/client";
 
 type CreateOrderResult =
-  | { success: true; orderNumber: string }
+  | { success: true; orderNumber: string | null; subscriptionCreated: boolean }
   | { success: false; error: string };
+
+function addInterval(date: Date, frequency: SubscriptionFrequency): Date {
+  const result = new Date(date);
+  if (frequency === "WEEKLY") result.setDate(result.getDate() + 7);
+  if (frequency === "BIWEEKLY") result.setDate(result.getDate() + 14);
+  if (frequency === "MONTHLY") result.setMonth(result.getMonth() + 1);
+  return result;
+}
 
 export async function createOrder(
   input: CheckoutInput
 ): Promise<CreateOrderResult> {
-  // 1. Validamos lo que llegó, sin confiar ciegamente en el navegador.
   const parsed = checkoutSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -19,74 +28,138 @@ export async function createOrder(
     };
   }
 
-  const { customerName, customerEmail, customerPhone, notes, items } =
+  const { customerName, customerEmail, customerPhone, notes, items, subscription } =
     parsed.data;
 
+  const session = await auth();
+
+  if (subscription && !session?.user) {
+    return {
+      success: false,
+      error: "Tu sesión expiró. Iniciá sesión de nuevo para completar la suscripción.",
+    };
+  }
+
   try {
-    // 2. Checkout como invitado: buscamos un usuario con ese email, o lo
-    // creamos si es la primera vez que compra. Todavía no hay login real
-    // (eso lo resolvemos más adelante con Auth.js).
-    const user = await prisma.user.upsert({
-      where: { email: customerEmail },
-      update: { name: customerName, phone: customerPhone },
-      create: {
-        email: customerEmail,
-        name: customerName,
-        phone: customerPhone,
-      },
-    });
+    let userId: string;
 
-    // 3. Traemos los precios REALES desde la base de datos — nunca
-    // confiamos en el precio que venga calculado del lado del navegador,
-    // aunque el carrito ya lo muestre. Alguien podría manipularlo.
-    const variantIds = items.map((item) => item.variantId);
-    const variants = await prisma.productVariant.findMany({
-      where: { id: { in: variantIds }, isActive: true },
-    });
-
-    if (variants.length !== variantIds.length) {
-      return {
-        success: false,
-        error: "Alguno de los productos ya no está disponible",
-      };
+    if (session?.user) {
+      userId = session.user.id;
+      await prisma.user.update({
+        where: { id: userId },
+        data: { phone: customerPhone },
+      });
+    } else {
+      const user = await prisma.user.upsert({
+        where: { email: customerEmail },
+        update: { name: customerName, phone: customerPhone },
+        create: {
+          email: customerEmail,
+          name: customerName,
+          phone: customerPhone,
+        },
+      });
+      userId = user.id;
     }
 
-    const orderItemsData = items.map((item) => {
-      const variant = variants.find((v) => v.id === item.variantId)!;
-      const unitPrice = Number(variant.price);
-      return {
-        productId: variant.productId,
-        productVariantId: variant.id,
-        quantity: item.quantity,
-        unitPrice,
-        subtotal: unitPrice * item.quantity,
-      };
-    });
+    let orderNumber: string | null = null;
 
-    const total = orderItemsData.reduce((sum, item) => sum + item.subtotal, 0);
+    if (items.length > 0) {
+      const variantIds = items.map((item) => item.variantId);
+      const variants = await prisma.productVariant.findMany({
+        where: { id: { in: variantIds }, isActive: true },
+      });
 
-    // Código de pedido legible, ej: "ND-M3X9K2"
-    const orderNumber = `ND-${Date.now().toString(36).toUpperCase()}`;
+      if (variants.length !== variantIds.length) {
+        return {
+          success: false,
+          error: "Alguno de los productos ya no está disponible",
+        };
+      }
 
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: user.id,
-        // Sin pasarela de pago conectada todavía, el pedido queda como
-        // PENDING. Cuando integremos Stripe, un webhook va a actualizar
-        // este status a PAID automáticamente al confirmarse el cobro.
-        status: "PENDING",
-        subtotal: total,
-        total,
-        pickupEta: new Date(Date.now() + 10 * 60 * 1000), // +10 minutos
-        notes,
-        items: { create: orderItemsData },
-      },
-    });
+      const orderItemsData = items.map((item) => {
+        const variant = variants.find((v) => v.id === item.variantId)!;
+        const unitPrice = Number(variant.price);
+        return {
+          productId: variant.productId,
+          productVariantId: variant.id,
+          quantity: item.quantity,
+          unitPrice,
+          subtotal: unitPrice * item.quantity,
+        };
+      });
 
-    return { success: true, orderNumber: order.orderNumber };
+      const total = orderItemsData.reduce((sum, item) => sum + item.subtotal, 0);
+      const generatedOrderNumber = `ND-${Date.now().toString(36).toUpperCase()}`;
+
+      await prisma.order.create({
+        data: {
+          orderNumber: generatedOrderNumber,
+          userId,
+          status: "PENDING",
+          subtotal: total,
+          total,
+          pickupEta: new Date(Date.now() + 10 * 60 * 1000),
+          notes,
+          items: { create: orderItemsData },
+        },
+      });
+
+      orderNumber = generatedOrderNumber;
+    }
+
+    let subscriptionCreated = false;
+
+    if (subscription) {
+      const plan = await prisma.subscriptionPlan.findUnique({
+        where: { id: subscription.planId },
+      });
+
+      if (!plan || !plan.isActive) {
+        return {
+          success: false,
+          error: "El plan de suscripción ya no está disponible",
+        };
+      }
+
+      const savedAddress = await prisma.address.create({
+        data: {
+          userId,
+          street: subscription.address.street,
+          number: subscription.address.number,
+          city: subscription.address.city,
+          state: subscription.address.state,
+          zipCode: subscription.address.zipCode,
+          // Solo vienen si el usuario usó el buscador con mapa — si
+          // completó los campos a mano, quedan en null y no pasa nada,
+          // el mapa es un lindo extra, no un requisito.
+          latitude: subscription.address.latitude,
+          longitude: subscription.address.longitude,
+          isDefault: true,
+        },
+      });
+
+      const now = new Date();
+
+      await prisma.subscription.create({
+        data: {
+          userId,
+          planId: plan.id,
+          addressId: savedAddress.id,
+          roastPreference: subscription.roastPreference,
+          grindPreference: subscription.grindPreference,
+          status: "ACTIVE",
+          currentPeriodStart: now,
+          currentPeriodEnd: addInterval(now, plan.frequency),
+        },
+      });
+
+      subscriptionCreated = true;
+    }
+
+    return { success: true, orderNumber, subscriptionCreated };
   } catch (error) {
-    console.error("Error creando la orden:", error);
+    console.error("Error procesando el checkout:", error);
     return {
       success: false,
       error: "Ocurrió un error al procesar tu pedido. Intentá de nuevo.",
