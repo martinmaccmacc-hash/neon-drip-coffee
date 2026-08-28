@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { ClearCartOnMount } from "@/components/cart/clear-cart-on-mount";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -35,14 +36,28 @@ export default async function CheckoutSuccessPage({
     : null;
 
   const displayName = order?.user.name.split(" ")[0];
+  const isStillPending = order?.status === "PENDING";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-void px-6 py-16">
+      {/* Solo limpiamos el carrito una vez que llegamos hasta acá con un
+          pedido real (o una suscripción) confirmados del lado del servidor. */}
+      <ClearCartOnMount />
+
       <div className="w-full max-w-md rounded-xl border border-neon-cyan/40 bg-surface p-8 text-center">
-        <p className="font-mono text-sm text-neon-cyan">// pedido confirmado</p>
+        <p className="font-mono text-sm text-neon-cyan">
+          {isStillPending ? "// confirmando tu pago" : "// pedido confirmado"}
+        </p>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">
           {displayName ? `¡Gracias, ${displayName}!` : "¡Gracias!"}
         </h1>
+
+        {isStillPending && (
+          <p className="mt-3 rounded-lg bg-void/60 px-3 py-2 font-mono text-xs text-neon-pink">
+            Estamos confirmando tu pago con Stripe — puede tardar unos
+            segundos. Si esta pantalla no cambia, refrescá la página.
+          </p>
+        )}
 
         {order && (
           <>
@@ -50,7 +65,7 @@ export default async function CheckoutSuccessPage({
               #{order.orderNumber}
             </p>
 
-            {pickupTime && (
+            {pickupTime && !isStillPending && (
               <p className="mt-4 font-mono text-sm text-dim">
                 Retirá tu pedido en barra alrededor de las{" "}
                 <span className="text-neon-pink">{pickupTime}</span>

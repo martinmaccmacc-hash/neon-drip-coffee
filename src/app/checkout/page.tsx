@@ -15,6 +15,7 @@ export default function CheckoutPage() {
   const items = useCartStore((s) => s.items);
   const pendingSubscription = useCartStore((s) => s.pendingSubscription);
   const clearCart = useCartStore((s) => s.clearCart);
+  const clearSubscription = useCartStore((s) => s.clearSubscription);
   const total = useCartTotal();
 
   const [form, setForm] = useState({
@@ -26,9 +27,6 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si el usuario ya está logueado, precargamos nombre/email desde su
-  // sesión — pero solo si el campo sigue vacío, para no pisar algo que ya
-  // haya empezado a escribir.
   useEffect(() => {
     if (session?.user) {
       setForm((prev) => ({
@@ -43,6 +41,8 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+
+    const subscriptionPlanName = pendingSubscription?.planName;
 
     const result = await createOrder({
       ...form,
@@ -60,22 +60,34 @@ export default function CheckoutPage() {
         : null,
     });
 
-    setIsSubmitting(false);
-
     if (!result.success) {
+      setIsSubmitting(false);
       setError(result.error);
       return;
     }
 
-    const subscriptionName = pendingSubscription?.planName;
-    clearCart();
-
-    const params = new URLSearchParams();
-    if (result.orderNumber) params.set("order", result.orderNumber);
-    if (result.subscriptionCreated && subscriptionName) {
-      params.set("subscriptionPlan", subscriptionName);
+    // La suscripción (si había) ya quedó creada en este mismo paso — la
+    // sacamos del carrito ya mismo, sin esperar a que se resuelva el pago
+    // de los productos.
+    if (result.subscriptionCreated) {
+      clearSubscription();
     }
 
+    if (result.checkoutUrl) {
+      // Hay productos por pagar: mandamos al usuario a Stripe. A propósito
+      // NO limpiamos "items" del carrito acá — si cancela en la página de
+      // Stripe, queremos que su carrito lo siga esperando intacto.
+      window.location.href = result.checkoutUrl;
+      return;
+    }
+
+    // No había productos que pagar (por ejemplo, solo se agregó una
+    // suscripción) — vamos directo a la pantalla de éxito.
+    clearCart();
+    const params = new URLSearchParams();
+    if (result.subscriptionCreated && subscriptionPlanName) {
+      params.set("subscriptionPlan", subscriptionPlanName);
+    }
     router.push(`/checkout/success?${params.toString()}`);
   }
 
@@ -96,9 +108,8 @@ export default function CheckoutPage() {
   return (
     <main className="min-h-screen bg-void px-6 py-16 md:px-12">
       <div className="mx-auto grid max-w-4xl gap-12 md:grid-cols-2">
-        {/* Resumen del pedido */}
         <section>
-          <p className="font-mono text-sm text-neon-cyan">// checkout.tsx</p>
+          <p className="font-mono text-sm text-neon-cyan">{"// checkout.tsx"}</p>
           <h1 className="mt-2 mb-6 font-display text-2xl font-bold text-ink">
             Resumen del pedido
           </h1>
@@ -139,9 +150,15 @@ export default function CheckoutPage() {
             <span className="text-ink">Total</span>
             <span className="text-neon-cyan">{formatPrice(total)}</span>
           </div>
+
+          {items.length > 0 && (
+            <p className="mt-4 font-mono text-xs text-dim">
+              Los productos se pagan con tarjeta en el siguiente paso, vía
+              Stripe.
+            </p>
+          )}
         </section>
 
-        {/* Formulario de contacto */}
         <section>
           <h2 className="mb-6 font-display text-2xl font-bold text-ink">
             Tus datos
@@ -188,7 +205,7 @@ export default function CheckoutPage() {
               disabled={isSubmitting}
               className="w-full rounded-lg bg-neon-purple py-3 font-mono text-sm font-semibold uppercase tracking-wide text-void transition-transform hover:scale-[1.02] hover:bg-neon-pink disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
-              {isSubmitting ? "Procesando..." : "Confirmar pedido"}
+              {isSubmitting ? "Procesando..." : "Continuar"}
             </button>
           </form>
         </section>

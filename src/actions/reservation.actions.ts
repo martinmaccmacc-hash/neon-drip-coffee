@@ -2,18 +2,18 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
 import {
   reservationSchema,
   type ReservationInput,
 } from "@/lib/validations/reservation.schema";
 
 type CreateReservationResult =
-  | { success: true; reservationId: string }
+  | { success: true; checkoutUrl: string }
   | { success: false; error: string };
 
-// Estados que "ocupan" el horario — una reserva CANCELLED o NO_SHOW no
-// debería bloquear ese espacio para otra persona.
 const BLOCKING_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function createReservation(
   input: ReservationInput
@@ -53,17 +53,11 @@ export async function createReservation(
   }
 
   try {
-    // Transacción: chequeamos solapamiento y creamos la reserva como una
-    // sola operación atómica, para minimizar la ventana de riesgo de que
-    // dos personas reserven el mismo horario casi al mismo tiempo.
     const reservation = await prisma.$transaction(async (tx) => {
       const overlapping = await tx.reservation.findFirst({
         where: {
           cyberPodId,
           status: { in: BLOCKING_STATUSES },
-          // Condición clásica de solapamiento de rangos de tiempo:
-          // el existente empieza antes de que el nuevo termine, Y
-          // el existente termina después de que el nuevo empieza.
           startTime: { lt: end },
           endTime: { gt: start },
         },
@@ -79,9 +73,9 @@ export async function createReservation(
         data: {
           userId: session.user.id,
           cyberPodId,
-          // Sin Stripe conectado todavía, confirmamos directo — igual que
-          // hicimos con las suscripciones.
-          status: "CONFIRMED",
+          // Ahora arranca en PENDING — recién pasa a CONFIRMED cuando
+          // Stripe confirma el pago, vía webhook.
+          status: "PENDING",
           startTime: start,
           endTime: end,
           attendees,
@@ -91,7 +85,27 @@ export async function createReservation(
       });
     });
 
-    return { success: true, reservationId: reservation.id };
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "uyu",
+            unit_amount: Math.round(Number(pod.hourlyRate) * durationHours * 100),
+            product_data: {
+              name: `${pod.name} — ${durationHours}h`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: session.user.email ?? undefined,
+      metadata: { type: "reservation", reservationId: reservation.id },
+      success_url: `${APP_URL}/coworking/confirm?reservation=${reservation.id}`,
+      cancel_url: `${APP_URL}/coworking/${cyberPodId}`,
+    });
+
+    return { success: true, checkoutUrl: checkoutSession.url! };
   } catch (error) {
     if (error instanceof Error && error.message === "SLOT_TAKEN") {
       return {

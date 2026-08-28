@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createReservation } from "@/actions/reservation.actions";
 import { formatPrice } from "@/lib/utils";
 
-// Horario de atención fijo, ya que todavía no tenemos ese dato en el
-// modelo de CyberPod — se podría mover a la base de datos más adelante.
 const OPEN_HOUR = 8;
 const CLOSE_HOUR = 22;
 const DURATION_OPTIONS = [1, 2, 3, 4];
@@ -24,7 +21,6 @@ export function BookingCalendar({
 }: {
   pod: { id: string; name: string; hourlyRate: number; capacity: number };
 }) {
-  const router = useRouter();
   const [date, setDate] = useState(() => toLocalDateInputValue(new Date()));
   const [duration, setDuration] = useState(1);
   const [attendees, setAttendees] = useState(1);
@@ -34,8 +30,6 @@ export function BookingCalendar({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cada vez que cambia la fecha, le preguntamos a /api/availability qué
-  // horarios ya están ocupados ese día para este pod puntual.
   useEffect(() => {
     let cancelled = false;
 
@@ -62,7 +56,6 @@ export function BookingCalendar({
   }, [date, pod.id]);
 
   function isSlotFree(hour: number) {
-    // La reserva tiene que terminar dentro del horario de atención.
     if (hour + duration > CLOSE_HOUR) return false;
 
     const slotStart = new Date(
@@ -102,14 +95,16 @@ export function BookingCalendar({
       attendees,
     });
 
-    setIsSubmitting(false);
-
     if (!result.success) {
+      setIsSubmitting(false);
       setError(result.error);
       return;
     }
 
-    router.push(`/coworking/confirm?reservation=${result.reservationId}`);
+    // Igual que en el checkout de productos: mandamos a Stripe. La
+    // reserva ya quedó guardada como PENDING, y el webhook la confirma
+    // apenas Stripe avisa que el pago se hizo.
+    window.location.href = result.checkoutUrl;
   }
 
   const total = pod.hourlyRate * duration;
@@ -207,7 +202,7 @@ export function BookingCalendar({
         disabled={isSubmitting}
         className="w-full rounded-lg bg-neon-purple py-3 font-mono text-sm font-semibold uppercase tracking-wide text-void transition-transform hover:scale-[1.02] hover:bg-neon-pink disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isSubmitting ? "Reservando..." : "Confirmar reserva"}
+        {isSubmitting ? "Redirigiendo a Stripe..." : "Reservar y pagar"}
       </button>
     </div>
   );
