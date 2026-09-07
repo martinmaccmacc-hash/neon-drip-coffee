@@ -40,13 +40,11 @@ export default async function CheckoutSuccessPage({
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-void px-6 py-16">
-      {/* Solo limpiamos el carrito una vez que llegamos hasta acá con un
-          pedido real (o una suscripción) confirmados del lado del servidor. */}
       <ClearCartOnMount />
 
       <div className="w-full max-w-md rounded-xl border border-neon-cyan/40 bg-surface p-8 text-center">
         <p className="font-mono text-sm text-neon-cyan">
-          {isStillPending ? "// confirmando tu pago" : "// pedido confirmado"}
+          {isStillPending ? "// confirmando tu pago" : "// pago confirmado"}
         </p>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">
           {displayName ? `¡Gracias, ${displayName}!` : "¡Gracias!"}
@@ -100,11 +98,16 @@ export default async function CheckoutSuccessPage({
         {subscriptionPlan && (
           <div className={order ? "mt-6 border-t border-line pt-6" : "mt-4"}>
             <p className="font-mono text-sm text-neon-purple">
-              // suscripción activada
+              // suscripción en proceso
             </p>
+            {/* Mensaje a propósito "suave": el pago de Stripe puede haberse
+                confirmado ya, pero la fila real en nuestra base de datos la
+                crea el webhook por separado — así que no afirmamos que ya
+                está 100% activa, para no mentirle al usuario. */}
             <p className="mt-1 text-sm text-dim">
-              Tu plan <span className="text-ink">{subscriptionPlan}</span> ya
-              está activo. El primer envío se está preparando.
+              Tu plan <span className="text-ink">{subscriptionPlan}</span>{" "}
+              se está activando. En unos segundos vas a poder verlo desde tu
+              cuenta.
             </p>
           </div>
         )}

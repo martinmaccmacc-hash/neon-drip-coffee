@@ -95,20 +95,20 @@ enum PaymentStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String?
-  phone        String?
-  image        String?
-  role         Role      @default(CUSTOMER)
-  // Campos para el flujo de "olvidé mi contraseña": guardamos un token
-  // random de un solo uso y su vencimiento. Mientras no se use un token
-  // real, estos quedan en null.
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  passwordHash     String?
+  phone            String?
+  image            String?
+  role             Role      @default(CUSTOMER)
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  // Id del "Customer" en Stripe — se crea una sola vez por usuario, la
+  // primera vez que se suscribe a Bean Deploy, y se reutiliza siempre.
+  stripeCustomerId String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   addresses     Address[]
   orders        Order[]

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCartStore, useCartTotal } from "@/store/cart-store";
@@ -9,13 +8,10 @@ import { formatPrice } from "@/lib/utils";
 import { createOrder } from "@/actions/order.actions";
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { data: session } = useSession();
 
   const items = useCartStore((s) => s.items);
   const pendingSubscription = useCartStore((s) => s.pendingSubscription);
-  const clearCart = useCartStore((s) => s.clearCart);
-  const clearSubscription = useCartStore((s) => s.clearSubscription);
   const total = useCartTotal();
 
   const [form, setForm] = useState({
@@ -42,8 +38,6 @@ export default function CheckoutPage() {
     setError(null);
     setIsSubmitting(true);
 
-    const subscriptionPlanName = pendingSubscription?.planName;
-
     const result = await createOrder({
       ...form,
       items: items.map((item) => ({
@@ -66,29 +60,10 @@ export default function CheckoutPage() {
       return;
     }
 
-    // La suscripción (si había) ya quedó creada en este mismo paso — la
-    // sacamos del carrito ya mismo, sin esperar a que se resuelva el pago
-    // de los productos.
-    if (result.subscriptionCreated) {
-      clearSubscription();
-    }
-
-    if (result.checkoutUrl) {
-      // Hay productos por pagar: mandamos al usuario a Stripe. A propósito
-      // NO limpiamos "items" del carrito acá — si cancela en la página de
-      // Stripe, queremos que su carrito lo siga esperando intacto.
-      window.location.href = result.checkoutUrl;
-      return;
-    }
-
-    // No había productos que pagar (por ejemplo, solo se agregó una
-    // suscripción) — vamos directo a la pantalla de éxito.
-    clearCart();
-    const params = new URLSearchParams();
-    if (result.subscriptionCreated && subscriptionPlanName) {
-      params.set("subscriptionPlan", subscriptionPlanName);
-    }
-    router.push(`/checkout/success?${params.toString()}`);
+    // Ahora TODO pasa por Stripe — productos, suscripción, o ambos juntos
+    // en la misma pantalla de pago. El carrito recién se limpia en la
+    // pantalla de éxito, una vez que Stripe confirma (ver ClearCartOnMount).
+    window.location.href = result.checkoutUrl;
   }
 
   if (items.length === 0 && !pendingSubscription) {
@@ -147,14 +122,15 @@ export default function CheckoutPage() {
           </div>
 
           <div className="mt-6 flex justify-between font-display text-xl font-bold">
-            <span className="text-ink">Total</span>
+            <span className="text-ink">Total de hoy</span>
             <span className="text-neon-cyan">{formatPrice(total)}</span>
           </div>
 
-          {items.length > 0 && (
+          {pendingSubscription && (
             <p className="mt-4 font-mono text-xs text-dim">
-              Los productos se pagan con tarjeta en el siguiente paso, vía
-              Stripe.
+              La suscripción se cobra automáticamente{" "}
+              {pendingSubscription.frequencyLabel.toLowerCase()} desde tu
+              tarjeta, a partir de hoy.
             </p>
           )}
         </section>
@@ -205,7 +181,7 @@ export default function CheckoutPage() {
               disabled={isSubmitting}
               className="w-full rounded-lg bg-neon-purple py-3 font-mono text-sm font-semibold uppercase tracking-wide text-void transition-transform hover:scale-[1.02] hover:bg-neon-pink disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
-              {isSubmitting ? "Procesando..." : "Continuar"}
+              {isSubmitting ? "Redirigiendo a Stripe..." : "Continuar"}
             </button>
           </form>
         </section>

@@ -1,8 +1,7 @@
 name: Keep Supabase Alive
 
 # Corre automáticamente domingos y miércoles a las 09:00 UTC — un margen
-# cómodo contra el límite de 7 días de inactividad de Supabase (si alguna
-# corrida llegara a fallar, la siguiente igual entra dentro del plazo).
+# cómodo contra el límite de 7 días de inactividad de Supabase.
 # "workflow_dispatch" además te deja correrlo a mano desde la pestaña
 # "Actions" de GitHub, para probarlo sin esperar al horario programado.
 on:
@@ -16,7 +15,16 @@ jobs:
     steps:
       - name: Ping Supabase database
         run: |
+          # "tr -d '[:space:]'" borra cualquier espacio, tab o salto de
+          # línea invisible que se haya colado al pegar el secret en
+          # GitHub — así el workflow funciona sin importar si el
+          # copy-paste salió perfecto o no.
+          URL=$(echo "${{ secrets.SUPABASE_URL }}" | tr -d '[:space:]')
+          KEY=$(echo "${{ secrets.SUPABASE_ANON_KEY }}" | tr -d '[:space:]')
+
+          echo "Pingueando: $URL"
+
           curl --fail --silent --show-error \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/Product?select=id&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+            "$URL/rest/v1/Product?select=id&limit=1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY"

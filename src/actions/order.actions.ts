@@ -1,22 +1,14 @@
 "use server";
 
+import type Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
+import { stripe, toStripeRecurring } from "@/lib/stripe";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validations/order.schema";
-import type { SubscriptionFrequency } from "@prisma/client";
 
 type CreateOrderResult =
-  | { success: true; checkoutUrl: string | null; subscriptionCreated: boolean }
+  | { success: true; checkoutUrl: string }
   | { success: false; error: string };
-
-function addInterval(date: Date, frequency: SubscriptionFrequency): Date {
-  const result = new Date(date);
-  if (frequency === "WEEKLY") result.setDate(result.getDate() + 7);
-  if (frequency === "BIWEEKLY") result.setDate(result.getDate() + 14);
-  if (frequency === "MONTHLY") result.setMonth(result.getMonth() + 1);
-  return result;
-}
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -45,9 +37,11 @@ export async function createOrder(
 
   try {
     let userId: string;
+    let userEmail: string;
 
     if (session?.user) {
       userId = session.user.id;
+      userEmail = session.user.email!;
       await prisma.user.update({
         where: { id: userId },
         data: { phone: customerPhone },
@@ -63,65 +57,18 @@ export async function createOrder(
         },
       });
       userId = user.id;
+      userEmail = user.email;
     }
 
-    // --- Suscripción (Bean Deploy): sigue activándose directo por ahora,
-    // sin pasar por Stripe todavía — eso queda para la Fase 2, con Stripe
-    // Billing (facturación recurrente real). ---
-    let subscriptionCreated = false;
-    let subscriptionPlanName: string | null = null;
+    // Armamos los "line items" de Stripe: uno por cada producto del
+    // carrito, más uno recurrente si hay una suscripción — todo en UNA
+    // sola Checkout Session, sin importar la combinación.
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
-    if (subscription) {
-      const plan = await prisma.subscriptionPlan.findUnique({
-        where: { id: subscription.planId },
-      });
+    let order: { id: string; orderNumber: string } | null = null;
 
-      if (!plan || !plan.isActive) {
-        return {
-          success: false,
-          error: "El plan de suscripción ya no está disponible",
-        };
-      }
-
-      const savedAddress = await prisma.address.create({
-        data: {
-          userId,
-          street: subscription.address.street,
-          number: subscription.address.number,
-          city: subscription.address.city,
-          state: subscription.address.state,
-          zipCode: subscription.address.zipCode,
-          latitude: subscription.address.latitude,
-          longitude: subscription.address.longitude,
-          isDefault: true,
-        },
-      });
-
-      const now = new Date();
-
-      await prisma.subscription.create({
-        data: {
-          userId,
-          planId: plan.id,
-          addressId: savedAddress.id,
-          roastPreference: subscription.roastPreference,
-          grindPreference: subscription.grindPreference,
-          status: "ACTIVE",
-          currentPeriodStart: now,
-          currentPeriodEnd: addInterval(now, plan.frequency),
-        },
-      });
-
-      subscriptionCreated = true;
-      subscriptionPlanName = plan.name;
-    }
-
-    // --- Productos (Click & Collect): ahora sí pasan por Stripe. ---
-    let checkoutUrl: string | null = null;
-
+    // --- Productos (Click & Collect) ---
     if (items.length > 0) {
-      // Nunca confiamos en el precio del navegador — recalculamos desde
-      // la base de datos.
       const variantIds = items.map((item) => item.variantId);
       const variants = await prisma.productVariant.findMany({
         where: { id: { in: variantIds }, isActive: true },
@@ -150,9 +97,7 @@ export async function createOrder(
       const total = orderItemsData.reduce((sum, item) => sum + item.subtotal, 0);
       const generatedOrderNumber = `ND-${Date.now().toString(36).toUpperCase()}`;
 
-      // El pedido nace en PENDING — recién pasa a PAID cuando llegue el
-      // webhook de Stripe confirmando el cobro.
-      const order = await prisma.order.create({
+      const createdOrder = await prisma.order.create({
         data: {
           orderNumber: generatedOrderNumber,
           userId,
@@ -165,38 +110,120 @@ export async function createOrder(
         },
       });
 
-      const successParams = new URLSearchParams({ order: order.orderNumber });
-      if (subscriptionPlanName) {
-        successParams.set("subscriptionPlan", subscriptionPlanName);
+      order = { id: createdOrder.id, orderNumber: createdOrder.orderNumber };
+
+      for (const item of items) {
+        const variant = variants.find((v) => v.id === item.variantId)!;
+        lineItems.push({
+          price_data: {
+            currency: "uyu",
+            unit_amount: Math.round(Number(variant.price) * 100),
+            product_data: { name: `${variant.product.name} (${variant.name})` },
+          },
+          quantity: item.quantity,
+        });
       }
-
-      const checkoutSession = await stripe.checkout.sessions.create({
-        mode: "payment",
-        line_items: items.map((item) => {
-          const variant = variants.find((v) => v.id === item.variantId)!;
-          return {
-            price_data: {
-              currency: "uyu",
-              unit_amount: Math.round(Number(variant.price) * 100),
-              product_data: {
-                name: `${variant.product.name} (${variant.name})`,
-              },
-            },
-            quantity: item.quantity,
-          };
-        }),
-        customer_email: customerEmail,
-        // Este metadata es lo único que necesitamos para que el webhook
-        // sepa qué actualizar cuando el pago se confirme.
-        metadata: { type: "order", orderId: order.id },
-        success_url: `${APP_URL}/checkout/success?${successParams.toString()}`,
-        cancel_url: `${APP_URL}/checkout`,
-      });
-
-      checkoutUrl = checkoutSession.url;
     }
 
-    return { success: true, checkoutUrl, subscriptionCreated };
+    // --- Suscripción (Bean Deploy) ---
+    let addressId: string | null = null;
+    let planName: string | null = null;
+
+    if (subscription) {
+      const plan = await prisma.subscriptionPlan.findUnique({
+        where: { id: subscription.planId },
+      });
+
+      if (!plan || !plan.isActive) {
+        return {
+          success: false,
+          error: "El plan de suscripción ya no está disponible",
+        };
+      }
+
+      const savedAddress = await prisma.address.create({
+        data: {
+          userId,
+          street: subscription.address.street,
+          number: subscription.address.number,
+          city: subscription.address.city,
+          state: subscription.address.state,
+          zipCode: subscription.address.zipCode,
+          latitude: subscription.address.latitude,
+          longitude: subscription.address.longitude,
+          isDefault: true,
+        },
+      });
+
+      addressId = savedAddress.id;
+      planName = plan.name;
+
+      lineItems.push({
+        price_data: {
+          currency: "uyu",
+          unit_amount: Math.round(Number(plan.price) * 100),
+          recurring: toStripeRecurring(plan.frequency),
+          product_data: { name: `Bean Deploy — ${plan.name}` },
+        },
+        quantity: 1,
+      });
+    }
+
+    if (lineItems.length === 0) {
+      return { success: false, error: "No hay nada para procesar" };
+    }
+
+    // Cliente de Stripe: lo creamos una sola vez por usuario (solo hace
+    // falta si hay una suscripción de por medio) y lo reutilizamos en
+    // futuras compras — así todo queda agrupado bajo el mismo perfil en
+    // el dashboard de Stripe.
+    let stripeCustomerId: string | null = null;
+
+    if (subscription) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      stripeCustomerId = user?.stripeCustomerId ?? null;
+
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: userEmail,
+          name: customerName,
+          metadata: { userId },
+        });
+        stripeCustomerId = customer.id;
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId },
+        });
+      }
+    }
+
+    const successParams = new URLSearchParams();
+    if (order) successParams.set("order", order.orderNumber);
+    if (planName) successParams.set("subscriptionPlan", planName);
+
+    const checkoutSession = await stripe.checkout.sessions.create({
+      // Si hay suscripción, la sesión ENTERA tiene que ser modo
+      // "subscription" — ahí Stripe permite mezclar el ítem recurrente
+      // con los ítems únicos de productos en la misma sesión.
+      mode: subscription ? "subscription" : "payment",
+      customer: stripeCustomerId ?? undefined,
+      customer_email: stripeCustomerId ? undefined : customerEmail,
+      line_items: lineItems,
+      // Este metadata es lo único que necesita el webhook para saber qué
+      // crear/actualizar cuando el pago se confirme.
+      metadata: {
+        orderId: order?.id ?? "",
+        userId,
+        subscriptionPlanId: subscription?.planId ?? "",
+        addressId: addressId ?? "",
+        roastPreference: subscription?.roastPreference ?? "",
+        grindPreference: subscription?.grindPreference ?? "",
+      },
+      success_url: `${APP_URL}/checkout/success?${successParams.toString()}`,
+      cancel_url: `${APP_URL}/checkout`,
+    });
+
+    return { success: true, checkoutUrl: checkoutSession.url! };
   } catch (error) {
     console.error("Error procesando el checkout:", error);
     return {
