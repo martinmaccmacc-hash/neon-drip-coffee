@@ -21,7 +21,7 @@ export function Navbar() {
           href="/"
           className="font-display text-lg font-bold uppercase tracking-wide text-ink"
         >
-          Neon<span className="text-neon-cyan">Drip</span>
+          Neon<span className="text-neon-cyan">Drip</span>Coffee
         </Link>
 
         <div className="flex items-center gap-6">

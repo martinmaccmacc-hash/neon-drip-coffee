@@ -1,3 +1,5 @@
+import { AccountNav } from "@/components/account/account-nav";
+
 export default function AccountLayout({
   children,
 }: {
@@ -5,7 +7,10 @@ export default function AccountLayout({
 }) {
   return (
     <main className="min-h-screen bg-void px-6 py-16 md:px-12">
-      <div className="mx-auto max-w-3xl">{children}</div>
+      <div className="mx-auto max-w-4xl">
+        <AccountNav />
+        {children}
+      </div>
     </main>
   );
 }
