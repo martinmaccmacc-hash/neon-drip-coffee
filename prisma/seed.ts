@@ -399,59 +399,136 @@ async function seedProducts(products: ProductSeed[]) {
 // ----------------------------------------------------------------------------
 // 4. CYBER-PODS — espacios de coworking
 //
-// Nota: usamos deleteMany + create (en vez de upsert) porque CyberPod no
-// tiene un campo único como "slug" para identificarlo. Esto borra y vuelve
-// a crear los pods cada vez que corrés el seed — seguro en desarrollo
-// (todavía no hay reservas reales de usuarios apuntando a estos pods), pero
-// NO es un patrón que harías así en producción.
+// `CyberPod.name` ahora es único (@unique en el schema), así que acá usamos
+// `upsert`: si el pod ya existe lo actualiza, si no existe lo crea. Esto es
+// importante porque los pods ya pueden tener reservas reales apuntando a
+// ellos — con deleteMany + create (como estaba antes) correríamos el riesgo
+// de romper esas reservas al borrar y recrear los pods con IDs nuevos.
 // ----------------------------------------------------------------------------
 
-async function seedCyberPods() {
-  await prisma.cyberPod.deleteMany({});
+// Ficha técnica completa que se muestra en la página de reserva de cada
+// Cyber-Pod Alpha (los 3 tienen exactamente el mismo equipamiento).
+const ALPHA_SPECS = `💻 Hardware de alto rendimiento
+- CPU: Intel Core i7 / AMD Ryzen 7 (generación reciente)
+- RAM: 16 GB o 32 GB de alta velocidad
+- Almacenamiento: SSD NVMe M.2 ultra rápido
 
+🖥️ Espacio visual y conectividad
+- Monitor 27" QHD (2K)
+- Cable USB-C con soporte de video y carga
+
+⌨️ Periféricos
+- Teclado mecánico o de perfil bajo, ANSI/ISO configurable
+- Ratón ergonómico de alta precisión
+- Hub USB accesible en mesa
+
+🪑 Silla ergonómica profesional — Modelo Pro-Tech
+Soporte lumbar ajustable, reposabrazos 4D, espuma de alta densidad, malla transpirable.`;
+
+// Ficha técnica de War Room Gamma: 4 puestos con las mismas características
+// que los Alpha, más el equipamiento propio de la sala grupal.
+const GAMMA_SPECS = `💻 Hardware de alto rendimiento (x4 puestos)
+- CPU: Intel Core i7 / AMD Ryzen 7 (generación reciente)
+- RAM: 16 GB o 32 GB de alta velocidad
+- Almacenamiento: SSD NVMe M.2 ultra rápido
+
+🖥️ Espacio visual y conectividad
+- 4 monitores individuales 27" QHD (2K), uno por puesto
+- Cable USB-C con soporte de video y carga en cada puesto
+
+⌨️ Periféricos (por puesto)
+- Teclado mecánico o de perfil bajo, ANSI/ISO configurable
+- Ratón ergonómico de alta precisión
+- Hub USB accesible en mesa
+
+👥 Equipamiento de sala grupal
+- Pizarra digital interactiva
+- 4 sillas ergonómicas profesionales — Modelo Pro-Tech`;
+
+const ALPHA_AMENITIES = [
+  "CPU Intel i7 / Ryzen 7",
+  "16-32 GB RAM",
+  "SSD NVMe M.2",
+  'Monitor 27" QHD',
+  "Silla ergonómica Pro-Tech",
+];
+
+const GAMMA_AMENITIES = [
+  "4 puestos individuales",
+  '4 monitores 27" QHD',
+  "Pizarra digital",
+  "4 sillas ergonómicas Pro-Tech",
+];
+
+async function seedCyberPods() {
   const pods = [
     {
-      name: "Cyber-Pod Alpha",
+      name: "Cyber-Pod Alpha-1",
       type: PodType.INDIVIDUAL,
       capacity: 1,
       hourlyRate: 350,
-      amenities: ["Fibra simétrica 1Gbps", 'Monitor 27" 4K', "Silla ergonómica"],
+      amenities: ALPHA_AMENITIES,
+      specsNote: ALPHA_SPECS,
     },
     {
-      name: "Cyber-Pod Beta",
+      name: "Cyber-Pod Alpha-2",
       type: PodType.INDIVIDUAL,
       capacity: 1,
       hourlyRate: 350,
-      amenities: ["Fibra simétrica 1Gbps", 'Monitor 27" 4K', "Standing desk"],
+      amenities: ALPHA_AMENITIES,
+      specsNote: ALPHA_SPECS,
+    },
+    {
+      name: "Cyber-Pod Alpha-3",
+      type: PodType.INDIVIDUAL,
+      capacity: 1,
+      hourlyRate: 350,
+      amenities: ALPHA_AMENITIES,
+      specsNote: ALPHA_SPECS,
     },
     {
       name: "War Room Gamma",
       type: PodType.GROUP,
       capacity: 4,
       hourlyRate: 950,
-      amenities: [
-        "Fibra simétrica 1Gbps",
-        '4 monitores individuales 27" (uno por persona)',
-        "Pizarra digital",
-        "4 sillas ergonómicas",
-      ],
+      amenities: GAMMA_AMENITIES,
+      specsNote: GAMMA_SPECS,
     },
   ];
 
   for (const pod of pods) {
-    await prisma.cyberPod.create({ data: pod });
+    await prisma.cyberPod.upsert({
+      where: { name: pod.name },
+      update: pod,
+      create: pod,
+    });
     console.log(`  ✓ ${pod.name}`);
+  }
+
+  // "Cyber-Pod Alpha" y "Cyber-Pod Beta" (los dos pods individuales viejos)
+  // quedan reemplazados por los 3 Alpha numerados de arriba. No los
+  // borramos —podrían tener reservas históricas apuntando a ellos—, los
+  // desactivamos para que dejen de listarse como disponibles.
+  const nombresViejos = ["Cyber-Pod Alpha", "Cyber-Pod Beta"];
+  const { count } = await prisma.cyberPod.updateMany({
+    where: { name: { in: nombresViejos } },
+    data: { isActive: false },
+  });
+  if (count > 0) {
+    console.log(`  ⏸️  ${count} pod(s) viejo(s) desactivado(s): ${nombresViejos.join(", ")}`);
   }
 }
 
 // ----------------------------------------------------------------------------
 // 5. PLANES DE SUSCRIPCIÓN — Bean Deploy
-// Mismo criterio que CyberPod: sin campo único, usamos deleteMany + create.
+//
+// Mismo motivo que en CyberPod: `SubscriptionPlan.name` ahora es único, y
+// usamos `upsert` en vez de `deleteMany` + `create`, porque ya hay
+// suscripciones reales de usuarios apuntando a estos planes (el error que
+// viste, `Subscription_planId_fkey`, era justamente por eso).
 // ----------------------------------------------------------------------------
 
 async function seedSubscriptionPlans() {
-  await prisma.subscriptionPlan.deleteMany({});
-
   const plans = [
     {
       name: "Explorer",
@@ -477,7 +554,11 @@ async function seedSubscriptionPlans() {
   ];
 
   for (const plan of plans) {
-    await prisma.subscriptionPlan.create({ data: plan });
+    await prisma.subscriptionPlan.upsert({
+      where: { name: plan.name },
+      update: plan,
+      create: plan,
+    });
     console.log(`  ✓ ${plan.name}`);
   }
 }

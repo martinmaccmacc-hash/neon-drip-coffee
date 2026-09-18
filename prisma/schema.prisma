@@ -218,7 +218,7 @@ model OrderItem {
 
 model SubscriptionPlan {
   id          String                @id @default(cuid())
-  name        String
+  name        String                @unique
   description String
   frequency   SubscriptionFrequency
   weightGr    Int
@@ -271,11 +271,15 @@ model SubscriptionDelivery {
 
 model CyberPod {
   id         String   @id @default(cuid())
-  name       String
+  name       String   @unique
   type       PodType
   capacity   Int
   hourlyRate Decimal  @db.Decimal(10, 2)
   amenities  String[]
+  // Ficha técnica completa (texto largo, con saltos de línea) que se
+  // muestra en la página de reserva de cada pod. `amenities` sigue siendo
+  // la lista corta de viñetas que ya usabas en las cards.
+  specsNote  String?
   imageUrl   String?
   isActive   Boolean  @default(true)
 

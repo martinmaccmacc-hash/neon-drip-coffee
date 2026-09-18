@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { BookingCalendar } from "@/components/coworking/booking-calendar";
+import { PodSpecs } from "@/components/coworking/pod-specs";
 
 export default async function CyberPodPage({
   params,
@@ -42,6 +43,8 @@ export default async function CyberPodPage({
               </li>
             ))}
           </ul>
+
+          <PodSpecs specsNote={pod.specsNote} />
 
           <div className="mt-6 flex justify-between border-t border-line pt-4">
             <span className="text-dim">Precio</span>
