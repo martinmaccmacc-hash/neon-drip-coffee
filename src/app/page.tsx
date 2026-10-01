@@ -5,6 +5,7 @@ import { ArrowRight, Coffee, Moon, Timer, Wifi } from "lucide-react";
 import { OurStory } from "@/components/home/our-story";
 import { Faq } from "@/components/home/faq";
 import { VisitUs } from "@/components/home/visit-us";
+import { GalleryCarousel } from "@/components/home/gallery-carousel";
 import { SITE, SITE_URL } from "@/lib/site-config";
 
 export const metadata: Metadata = {
@@ -245,18 +246,7 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <GalleryPhoto
-              src="/images/gallery-bar.png"
-              alt="Barra de café de Neon Drip Coffee, con cartelería neón"
-              caption="La barra"
-            />
-            <GalleryPhoto
-              src="/images/gallery-toma-pedidos.png"
-              alt="Tomando pedidos en el mostrador de Neon Drip Coffee"
-              caption="Tomamos tu pedido"
-            />
-          </div>
+          <GalleryCarousel />
         </div>
       </section>
 
@@ -416,31 +406,5 @@ function FeatureRow({
         </Link>
       </div>
     </article>
-  );
-}
-
-function GalleryPhoto({
-  src,
-  alt,
-  caption,
-}: {
-  src: string;
-  alt: string;
-  caption: string;
-}) {
-  return (
-    <div className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-line">
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="(min-width: 768px) 50vw, 100vw"
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-void/80 via-void/0 to-void/0" />
-      <p className="absolute bottom-4 left-4 font-mono text-sm text-ink">
-        {caption}
-      </p>
-    </div>
   );
 }

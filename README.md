@@ -19,6 +19,20 @@ Aplicación web full-stack para una cafetería de especialidad **ficticia** con 
 | **Cyber-Pods** | Reservar espacios de coworking por hora: elegir pod, fecha, duración y horario disponible. Precio con descuento automático en reservas largas. |
 | **Mi cuenta** | Registro, inicio de sesión, recuperación de contraseña e historial de pedidos, suscripciones y reservas. |
 
+## Capturas
+
+**Home**
+
+![Home de Neon Drip Coffee](./docs/screenshots/home.jpg)
+
+**Menú (Click & Collect)**: variantes de tamaño, nivel de tostado y carrito.
+
+![Menú con tarjetas de productos](./docs/screenshots/menu.jpg)
+
+**Cyber-Pods**: pods agrupados por modelo, ficha técnica y precio con descuento.
+
+![Página de coworking con Cyber-Pod Alpha y War Room Gamma](./docs/screenshots/coworking.jpg)
+
 ## Stack
 
 - **Framework:** [Next.js 16](https://nextjs.org/) (App Router, Server Components, Server Actions) + React 19
@@ -90,7 +104,10 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 Y usá la tarjeta de prueba `4242 4242 4242 4242`, con cualquier fecha futura y cualquier CVC.
 
-> **Nota:** los emails se envían con el remitente de pruebas de Resend, que solo entrega a la cuenta con la que te registraste en Resend.
+### Notas
+
+- **Supabase puede pausar la base de datos.** En el plan gratuito, Supabase pausa los proyectos tras unos días sin actividad. Si la app o `npm run build` muestran `Can't reach database server`, entrá al [dashboard de Supabase](https://supabase.com/dashboard), reanudá el proyecto (_Restore project_) y esperá un par de minutos. El build también necesita la base, porque genera de antemano las páginas de Menú, Bean Deploy y Coworking. El repositorio incluye un workflow de GitHub Actions (`.github/workflows/keep-supabase-alive.yml`) que consulta la base dos veces por semana para reducir las pausas, aunque no las evita en todos los casos.
+- **Emails de prueba.** Los emails se envían con el remitente de pruebas de Resend, que solo entrega a la cuenta con la que te registraste en Resend.
 
 ## Desarrollo asistido por IA 🤖
 
