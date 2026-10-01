@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import type { Reservation, CyberPod } from "@prisma/client";
+import { TIME_ZONE } from "@/lib/site-config";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente de pago",
@@ -94,6 +95,7 @@ function ReservationGroup({
                 <span className="text-dim">Fecha</span>
                 <span className="capitalize text-ink">
                   {r.startTime.toLocaleDateString("es-UY", {
+                    timeZone: TIME_ZONE,
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -104,11 +106,13 @@ function ReservationGroup({
                 <span className="text-dim">Horario</span>
                 <span className="text-ink">
                   {r.startTime.toLocaleTimeString("es-UY", {
+                    timeZone: TIME_ZONE,
                     hour: "2-digit",
                     minute: "2-digit",
                   })}{" "}
                   -{" "}
                   {r.endTime.toLocaleTimeString("es-UY", {
+                    timeZone: TIME_ZONE,
                     hour: "2-digit",
                     minute: "2-digit",
                   })}

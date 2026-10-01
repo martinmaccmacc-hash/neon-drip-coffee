@@ -2,11 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// "onboarding@resend.dev" es el dominio de pruebas que Resend te da gratis
-// desde el primer minuto — funciona sin configurar nada, pero solo puede
-// entregar emails a la MISMA cuenta con la que te registraste en Resend.
-// Para mandarle emails a cualquier usuario real, más adelante habría que
-// verificar un dominio propio en el dashboard de Resend.
+// Remitente de pruebas de Resend: solo entrega a la cuenta registrada
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await resend.emails.send({
     from: "Neon Drip Coffee <onboarding@resend.dev>",

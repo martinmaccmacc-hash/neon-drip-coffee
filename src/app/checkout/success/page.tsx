@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { ClearCartOnMount } from "@/components/cart/clear-cart-on-mount";
+import { TIME_ZONE } from "@/lib/site-config";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -30,6 +31,7 @@ export default async function CheckoutSuccessPage({
 
   const pickupTime = order?.pickupEta
     ? new Date(order.pickupEta).toLocaleTimeString("es-UY", {
+        timeZone: TIME_ZONE,
         hour: "2-digit",
         minute: "2-digit",
       })
@@ -98,12 +100,9 @@ export default async function CheckoutSuccessPage({
         {subscriptionPlan && (
           <div className={order ? "mt-6 border-t border-line pt-6" : "mt-4"}>
             <p className="font-mono text-sm text-neon-purple">
-              // suscripción en proceso
+              {"// suscripción en proceso"}
             </p>
-            {/* Mensaje a propósito "suave": el pago de Stripe puede haberse
-                confirmado ya, pero la fila real en nuestra base de datos la
-                crea el webhook por separado — así que no afirmamos que ya
-                está 100% activa, para no mentirle al usuario. */}
+            {/* La suscripción la crea el webhook de forma asíncrona */}
             <p className="mt-1 text-sm text-dim">
               Tu plan <span className="text-ink">{subscriptionPlan}</span>{" "}
               se está activando. En unos segundos vas a poder verlo desde tu

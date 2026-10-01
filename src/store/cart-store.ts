@@ -26,8 +26,7 @@ export type SubscriptionSelection = {
     city: string;
     state: string;
     zipCode: string;
-    // Opcionales: solo vienen si el usuario eligió la dirección desde el
-    // buscador con mapa (Mapbox), no si completó los campos a mano.
+    // Solo si la dirección vino del buscador (Mapbox)
     latitude?: number;
     longitude?: number;
   };

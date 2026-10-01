@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
   if (submitted) {
     return (
       <div className="text-center">
-        <p className="font-mono text-sm text-neon-cyan">// listo</p>
+        <p className="font-mono text-sm text-neon-cyan">{"// listo"}</p>
         <h1 className="mt-2 font-display text-xl font-bold text-ink">
           Revisá tu email
         </h1>
@@ -42,17 +42,22 @@ export default function ForgotPasswordPage() {
   return (
     <div>
       <p className="font-mono text-sm text-neon-cyan">
-        // forgot-password.tsx
+        {"// forgot-password.tsx"}
       </p>
       <h1 className="mt-2 mb-6 font-display text-2xl font-bold text-ink">
         Recuperar contraseña
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="forgot-email"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Email
           </label>
           <input
+            id="forgot-email"
+            autoComplete="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

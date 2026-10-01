@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { TIME_ZONE } from "@/lib/site-config";
+
+export const metadata: Metadata = {
+  title: "Reserva confirmada",
+  robots: { index: false, follow: false },
+};
 
 export default async function CoworkingConfirmPage({
   searchParams,
@@ -25,15 +32,18 @@ export default async function CoworkingConfirmPage({
   }
 
   const dateLabel = reservation.startTime.toLocaleDateString("es-UY", {
+    timeZone: TIME_ZONE,
     weekday: "long",
     day: "numeric",
     month: "long",
   });
   const startLabel = reservation.startTime.toLocaleTimeString("es-UY", {
+    timeZone: TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
   });
   const endLabel = reservation.endTime.toLocaleTimeString("es-UY", {
+    timeZone: TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -42,7 +52,7 @@ export default async function CoworkingConfirmPage({
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-void px-6 py-16">
       <div className="w-full max-w-md rounded-xl border border-neon-cyan/40 bg-surface p-8 text-center">
         <p className="font-mono text-sm text-neon-cyan">
-          // reserva confirmada
+          {"// reserva confirmada"}
         </p>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">
           ¡Listo, {reservation.user.name.split(" ")[0]}!

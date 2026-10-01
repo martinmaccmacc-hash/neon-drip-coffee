@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { CancelSubscriptionButton } from "@/components/account/cancel-subscription-button";
+import { TIME_ZONE } from "@/lib/site-config";
 
 const FREQUENCY_LABEL: Record<string, string> = {
   WEEKLY: "Cada semana",
@@ -81,6 +82,7 @@ export default async function SubscriptionsPage() {
                     <span className="text-dim">Próximo cobro</span>
                     <span className="text-ink">
                       {sub.currentPeriodEnd.toLocaleDateString("es-UY", {
+                        timeZone: TIME_ZONE,
                         day: "numeric",
                         month: "long",
                       })}

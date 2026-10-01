@@ -54,16 +54,21 @@ function ResetPasswordForm() {
 
   return (
     <div>
-      <p className="font-mono text-sm text-neon-cyan">// reset-password.tsx</p>
+      <p className="font-mono text-sm text-neon-cyan">{"// reset-password.tsx"}</p>
       <h1 className="mt-2 mb-6 font-display text-2xl font-bold text-ink">
         Nueva contraseña
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="reset-password"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Nueva contraseña
           </label>
           <input
+            id="reset-password"
+            autoComplete="new-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -73,10 +78,15 @@ function ResetPasswordForm() {
           />
         </div>
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="reset-password-confirm"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Confirmar contraseña
           </label>
           <input
+            id="reset-password-confirm"
+            autoComplete="new-password"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -86,7 +96,11 @@ function ResetPasswordForm() {
           />
         </div>
 
-        {error && <p className="font-mono text-sm text-neon-pink">{error}</p>}
+        {error && (
+        <p role="alert" className="font-mono text-sm text-neon-pink">
+          {error}
+        </p>
+      )}
 
         <button
           type="submit"

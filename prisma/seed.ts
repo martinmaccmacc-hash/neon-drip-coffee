@@ -1,16 +1,5 @@
-// ============================================================================
-// Neon Drip Coffee — Seed Script
-//
-// Este script llena la base de datos con datos de prueba: bebidas del menú,
-// bolsas de café para Bean Deploy, repostería, Cyber-Pods y planes de
-// suscripción. Se corre con: npx prisma db seed
-//
-// Usamos `upsert` en cada producto: busca primero si ya existe una fila con
-// ese valor único (el slug, en el caso de Product), y si existe, la
-// ACTUALIZA con los datos actuales de este archivo (antes esto no pasaba,
-// era un bug: el `update` estaba vacío y por eso los precios viejos no se
-// reemplazaban al re-correr el seed. Ya está corregido).
-// ============================================================================
+// Seed de Neon Drip Coffee — npx prisma db seed
+// Usa upsert para poder re-ejecutarse sin duplicar datos ni romper relaciones.
 
 import {
   PrismaClient,
@@ -22,11 +11,6 @@ import {
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
-
-// ----------------------------------------------------------------------------
-// Tipos auxiliares — solo para que TypeScript nos avise si nos olvidamos
-// un campo obligatorio al escribir los datos de abajo.
-// ----------------------------------------------------------------------------
 
 type VariantSeed = {
   name: string;
@@ -51,10 +35,7 @@ type ProductSeed = {
   variants: VariantSeed[];
 };
 
-// ----------------------------------------------------------------------------
-// 1. CORE BREWS — bebidas preparadas, se piden en el mostrador (Click & Collect)
-// Precios en pesos uruguayos (UYU). Tamaños en mililitros (ml).
-// ----------------------------------------------------------------------------
+// 1. Core Brews (precios en UYU)
 
 const coreBrews: ProductSeed[] = [
   {
@@ -163,10 +144,7 @@ const coreBrews: ProductSeed[] = [
   },
 ];
 
-// ----------------------------------------------------------------------------
-// 2. BEAN DEPLOY — bolsas de café en grano/molido, para suscripción y retail
-// El peso sigue en gramos (es una medida de masa, no de volumen — no cambia).
-// ----------------------------------------------------------------------------
+// 2. Bean Deploy — bolsas de café
 
 const beanBags: ProductSeed[] = [
   {
@@ -277,9 +255,7 @@ const beanBags: ProductSeed[] = [
   },
 ];
 
-// ----------------------------------------------------------------------------
-// 3. BYTE-SIZED BITES — repostería y snacks
-// ----------------------------------------------------------------------------
+// 3. Byte-Sized Bites
 
 const pastries: ProductSeed[] = [
   {
@@ -335,7 +311,8 @@ const pastries: ProductSeed[] = [
   {
     slug: "infinite-loop-donut",
     name: "Infinite Loop Donut",
-    description: "Dona glaseada con chispas de colores neón. Una vez que empezás, no parás.",
+    description:
+      "Dona esponjosa con glaseado rosa y chispas de colores neón. Una vez que empezás, no parás.",
     category: ProductCategory.PASTRY,
     basePrice: 155,
     variants: [{ name: "Individual", price: 155, sku: "PST-007-A" }],
@@ -350,11 +327,7 @@ const pastries: ProductSeed[] = [
   },
 ];
 
-// ----------------------------------------------------------------------------
-// Función reutilizable: crea O ACTUALIZA un producto y todas sus variantes.
-// Con upsert + update real, correr este script de nuevo con precios nuevos
-// SÍ los va a reflejar en la base de datos (antes no lo hacía).
-// ----------------------------------------------------------------------------
+// Crea o actualiza un producto y sus variantes
 
 async function seedProducts(products: ProductSeed[]) {
   for (const p of products) {
@@ -396,18 +369,10 @@ async function seedProducts(products: ProductSeed[]) {
   }
 }
 
-// ----------------------------------------------------------------------------
-// 4. CYBER-PODS — espacios de coworking
-//
-// `CyberPod.name` ahora es único (@unique en el schema), así que acá usamos
-// `upsert`: si el pod ya existe lo actualiza, si no existe lo crea. Esto es
-// importante porque los pods ya pueden tener reservas reales apuntando a
-// ellos — con deleteMany + create (como estaba antes) correríamos el riesgo
-// de romper esas reservas al borrar y recrear los pods con IDs nuevos.
-// ----------------------------------------------------------------------------
+// 4. Cyber-Pods
+// Upsert por nombre: los pods pueden tener reservas asociadas.
 
-// Ficha técnica completa que se muestra en la página de reserva de cada
-// Cyber-Pod Alpha (los 3 tienen exactamente el mismo equipamiento).
+// Ficha técnica de los Cyber-Pod Alpha
 const ALPHA_SPECS = `💻 Hardware de alto rendimiento
 - CPU: Intel Core i7 / AMD Ryzen 7 (generación reciente)
 - RAM: 16 GB o 32 GB de alta velocidad
@@ -425,8 +390,7 @@ const ALPHA_SPECS = `💻 Hardware de alto rendimiento
 🪑 Silla ergonómica profesional — Modelo Pro-Tech
 Soporte lumbar ajustable, reposabrazos 4D, espuma de alta densidad, malla transpirable.`;
 
-// Ficha técnica de War Room Gamma: 4 puestos con las mismas características
-// que los Alpha, más el equipamiento propio de la sala grupal.
+// Ficha técnica de War Room Gamma
 const GAMMA_SPECS = `💻 Hardware de alto rendimiento (x4 puestos)
 - CPU: Intel Core i7 / AMD Ryzen 7 (generación reciente)
 - RAM: 16 GB o 32 GB de alta velocidad
@@ -466,33 +430,46 @@ async function seedCyberPods() {
       name: "Cyber-Pod Alpha-1",
       type: PodType.INDIVIDUAL,
       capacity: 1,
-      hourlyRate: 350,
+      hourlyRate: 250,
+      // 3 horas o más: $200/hora para toda la reserva
+      discountedHourlyRate: 200,
+      discountFromHours: 3,
       amenities: ALPHA_AMENITIES,
       specsNote: ALPHA_SPECS,
+      imageUrl: "/images/cyber-pod-alpha.jpg",
     },
     {
       name: "Cyber-Pod Alpha-2",
       type: PodType.INDIVIDUAL,
       capacity: 1,
-      hourlyRate: 350,
+      hourlyRate: 250,
+      discountedHourlyRate: 200,
+      discountFromHours: 3,
       amenities: ALPHA_AMENITIES,
       specsNote: ALPHA_SPECS,
+      imageUrl: "/images/cyber-pod-alpha.jpg",
     },
     {
       name: "Cyber-Pod Alpha-3",
       type: PodType.INDIVIDUAL,
       capacity: 1,
-      hourlyRate: 350,
+      hourlyRate: 250,
+      discountedHourlyRate: 200,
+      discountFromHours: 3,
       amenities: ALPHA_AMENITIES,
       specsNote: ALPHA_SPECS,
+      imageUrl: "/images/cyber-pod-alpha.jpg",
     },
     {
       name: "War Room Gamma",
       type: PodType.GROUP,
       capacity: 4,
-      hourlyRate: 950,
+      hourlyRate: 800,
+      discountedHourlyRate: null,
+      discountFromHours: null,
       amenities: GAMMA_AMENITIES,
       specsNote: GAMMA_SPECS,
+      imageUrl: "/images/pod-gamma.jpg",
     },
   ];
 
@@ -505,10 +482,7 @@ async function seedCyberPods() {
     console.log(`  ✓ ${pod.name}`);
   }
 
-  // "Cyber-Pod Alpha" y "Cyber-Pod Beta" (los dos pods individuales viejos)
-  // quedan reemplazados por los 3 Alpha numerados de arriba. No los
-  // borramos —podrían tener reservas históricas apuntando a ellos—, los
-  // desactivamos para que dejen de listarse como disponibles.
+  // Los pods viejos se desactivan (no se borran) porque pueden tener reservas históricas
   const nombresViejos = ["Cyber-Pod Alpha", "Cyber-Pod Beta"];
   const { count } = await prisma.cyberPod.updateMany({
     where: { name: { in: nombresViejos } },
@@ -519,14 +493,7 @@ async function seedCyberPods() {
   }
 }
 
-// ----------------------------------------------------------------------------
-// 5. PLANES DE SUSCRIPCIÓN — Bean Deploy
-//
-// Mismo motivo que en CyberPod: `SubscriptionPlan.name` ahora es único, y
-// usamos `upsert` en vez de `deleteMany` + `create`, porque ya hay
-// suscripciones reales de usuarios apuntando a estos planes (el error que
-// viste, `Subscription_planId_fkey`, era justamente por eso).
-// ----------------------------------------------------------------------------
+// 5. Planes de suscripción (Bean Deploy)
 
 async function seedSubscriptionPlans() {
   const plans = [
@@ -563,9 +530,7 @@ async function seedSubscriptionPlans() {
   }
 }
 
-// ----------------------------------------------------------------------------
-// MAIN — orquesta todo el proceso, en orden
-// ----------------------------------------------------------------------------
+// Main
 
 async function main() {
   console.log("🌱 Sembrando Neon Drip Coffee...\n");

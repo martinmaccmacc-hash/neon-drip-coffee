@@ -14,7 +14,10 @@ export function AccountNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="mb-10 flex gap-6 border-b border-line pb-4 font-mono text-sm">
+    <nav
+      aria-label="Mi cuenta"
+      className="-mx-6 mb-10 flex gap-6 overflow-x-auto border-b border-line px-6 pb-4 font-mono text-sm md:mx-0 md:px-0"
+    >
       {TABS.map((tab) => {
         const isActive =
           tab.href === "/account"
@@ -25,11 +28,12 @@ export function AccountNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className={
+            aria-current={isActive ? "page" : undefined}
+            className={`shrink-0 whitespace-nowrap ${
               isActive
                 ? "text-neon-cyan"
                 : "text-dim transition-colors hover:text-ink"
-            }
+            }`}
           >
             {tab.label}
           </Link>

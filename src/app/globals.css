@@ -1,14 +1,8 @@
 @import "tailwindcss";
 
-/*
- * Tailwind v4 no usa tailwind.config.js para esto — los "design tokens"
- * (colores, fuentes) se definen directo acá, dentro de @theme inline.
- * Cada variable que empieza con --color-X se convierte automáticamente
- * en clases de utilidad: --color-neon-cyan te da bg-neon-cyan,
- * text-neon-cyan, border-neon-cyan, etc.
- */
+/* Design tokens (Tailwind v4): cada --color-* genera sus utilidades */
 @theme inline {
-  /* Fondo y superficies (paleta oscura antracita, según el concepto de marca) */
+  /* Superficies */
   --color-void: #0a0a0f;
   --color-surface: #14141f;
   --color-surface-hover: #1c1c2a;
@@ -18,12 +12,12 @@
   --color-ink: #e8e8f2;
   --color-dim: #8b8ba3;
 
-  /* Acentos neón (moradas, cian, rosa — como pide el concepto original) */
+  /* Acentos neón */
   --color-neon-purple: #a855f7;
   --color-neon-cyan: #22d3ee;
   --color-neon-pink: #ec4899;
 
-  /* Fuentes (las variables reales las define layout.tsx con next/font) */
+  /* Fuentes (definidas con next/font en layout.tsx) */
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);

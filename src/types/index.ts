@@ -1,9 +1,4 @@
-// Tipos compartidos entre el Server Component (page.tsx, que consulta la
-// base de datos) y los Client Components (product-card.tsx, variant-selector.tsx,
-// que muestran los datos e interactúan con el usuario).
-//
-// Nota que `price` es `number`, no `Decimal` como en Prisma — ya viene
-// convertido, porque un Client Component no puede recibir un objeto Decimal.
+// Tipos del menú compartidos entre Server y Client Components (precios ya como number)
 
 export type MenuVariant = {
   id: string;

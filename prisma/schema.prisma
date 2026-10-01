@@ -1,7 +1,4 @@
-// ============================================================================
 // Neon Drip Coffee — Prisma Schema
-// "Fueled by Caffeine, Driven by Code."
-// ============================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -104,8 +101,7 @@ model User {
   role             Role      @default(CUSTOMER)
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  // Id del "Customer" en Stripe — se crea una sola vez por usuario, la
-  // primera vez que se suscribe a Bean Deploy, y se reutiliza siempre.
+  // Customer de Stripe, creado en la primera suscripción y reutilizado
   stripeCustomerId String?   @unique
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -275,10 +271,11 @@ model CyberPod {
   type       PodType
   capacity   Int
   hourlyRate Decimal  @db.Decimal(10, 2)
+  // Tarifa reducida para toda la reserva a partir de `discountFromHours`
+  discountedHourlyRate Decimal? @db.Decimal(10, 2)
+  discountFromHours    Int?
   amenities  String[]
-  // Ficha técnica completa (texto largo, con saltos de línea) que se
-  // muestra en la página de reserva de cada pod. `amenities` sigue siendo
-  // la lista corta de viñetas que ya usabas en las cards.
+  // Ficha técnica completa; `amenities` es el resumen corto de las cards
   specsNote  String?
   imageUrl   String?
   isActive   Boolean  @default(true)

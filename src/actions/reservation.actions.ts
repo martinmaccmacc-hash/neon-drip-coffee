@@ -1,19 +1,26 @@
 "use server";
 
+import type { ReservationStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { calculateReservationTotal } from "@/lib/coworking-pricing";
 import {
   reservationSchema,
   type ReservationInput,
 } from "@/lib/validations/reservation.schema";
+import { SITE_URL } from "@/lib/site-config";
 
 type CreateReservationResult =
   | { success: true; checkoutUrl: string }
   | { success: false; error: string };
 
-const BLOCKING_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const BLOCKING_STATUSES: ReservationStatus[] = [
+  "PENDING",
+  "CONFIRMED",
+  "COMPLETED",
+];
+const APP_URL = SITE_URL;
 
 export async function createReservation(
   input: ReservationInput
@@ -52,6 +59,17 @@ export async function createReservation(
     };
   }
 
+  // El precio se calcula en el servidor; nunca se toma del cliente
+  const totalPrice = calculateReservationTotal(
+    {
+      hourlyRate: Number(pod.hourlyRate),
+      discountedHourlyRate:
+        pod.discountedHourlyRate != null ? Number(pod.discountedHourlyRate) : null,
+      discountFromHours: pod.discountFromHours,
+    },
+    durationHours
+  );
+
   try {
     const reservation = await prisma.$transaction(async (tx) => {
       const overlapping = await tx.reservation.findFirst({
@@ -67,14 +85,11 @@ export async function createReservation(
         throw new Error("SLOT_TAKEN");
       }
 
-      const totalPrice = Number(pod.hourlyRate) * durationHours;
-
       return tx.reservation.create({
         data: {
           userId: session.user.id,
           cyberPodId,
-          // Ahora arranca en PENDING — recién pasa a CONFIRMED cuando
-          // Stripe confirma el pago, vía webhook.
+          // PENDING hasta que el webhook de Stripe confirme el pago
           status: "PENDING",
           startTime: start,
           endTime: end,
@@ -91,7 +106,7 @@ export async function createReservation(
         {
           price_data: {
             currency: "uyu",
-            unit_amount: Math.round(Number(pod.hourlyRate) * durationHours * 100),
+            unit_amount: Math.round(totalPrice * 100),
             product_data: {
               name: `${pod.name} — ${durationHours}h`,
             },

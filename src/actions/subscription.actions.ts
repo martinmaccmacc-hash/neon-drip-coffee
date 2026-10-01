@@ -18,9 +18,7 @@ export async function cancelSubscription(
     where: { id: subscriptionId },
   });
 
-  // Chequeo de seguridad clave: nos aseguramos de que la suscripción sea
-  // REALMENTE del usuario logueado — sin esto, cualquiera podría intentar
-  // cancelar la suscripción de otra persona adivinando o armando un id.
+  // Verifica que la suscripción pertenezca al usuario
   if (!subscription || subscription.userId !== session.user.id) {
     return { success: false, error: "No encontramos esa suscripción" };
   }
@@ -33,9 +31,7 @@ export async function cancelSubscription(
   }
 
   try {
-    // Cancelamos directo en Stripe — el webhook
-    // "customer.subscription.deleted" que ya armamos se encarga de
-    // actualizar nuestro estado automáticamente cuando Stripe confirme.
+    // El webhook customer.subscription.deleted actualiza el estado local
     await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
     return { success: true };
   } catch (error) {

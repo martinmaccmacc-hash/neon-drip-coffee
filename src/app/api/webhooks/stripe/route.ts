@@ -5,9 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import type { GrindType, SubscriptionStatus } from "@prisma/client";
 
-// Este endpoint lo llama STRIPE, no tu navegador. Por eso valida la
-// "firma" del pedido (stripe-signature) contra STRIPE_WEBHOOK_SECRET —
-// así confirmamos que el aviso realmente viene de Stripe.
+// Webhook de Stripe: valida la firma y sincroniza el estado de pedidos, suscripciones y reservas
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = (await headers()).get("stripe-signature");
@@ -32,8 +30,7 @@ export async function POST(req: Request) {
 
   try {
     switch (event.type) {
-      // Se dispara apenas se confirma el pago inicial — tanto para
-      // pedidos puntuales como para el primer cobro de una suscripción.
+      // Pago inicial confirmado (pedido y/o primer cobro de suscripción)
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const { orderId, userId, subscriptionPlanId, addressId, roastPreference, grindPreference } =
@@ -44,7 +41,7 @@ export async function POST(req: Request) {
             ? session.payment_intent
             : session.payment_intent?.id;
 
-        // --- Parte del pedido puntual (si había productos en el carrito) ---
+        // --- Pedido (Click & Collect) ---
         if (orderId) {
           await prisma.order.update({
             where: { id: orderId },
@@ -63,7 +60,7 @@ export async function POST(req: Request) {
           });
         }
 
-        // --- Parte de la suscripción (si el checkout era de Bean Deploy) ---
+        // --- Suscripción (Bean Deploy) ---
         if (session.mode === "subscription" && subscriptionPlanId && addressId && userId) {
           const stripeSubscriptionId =
             typeof session.subscription === "string"
@@ -72,9 +69,7 @@ export async function POST(req: Request) {
 
           if (stripeSubscriptionId) {
             const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-            // OJO: desde una actualización de la API de Stripe, las
-            // fechas de período ya NO viven en la suscripción misma,
-            // sino en su primer "item" — por eso accedemos así.
+            // En la API actual de Stripe el período vive en el primer item de la suscripción
             const item = stripeSub.items.data[0];
 
             await prisma.subscription.create({
@@ -95,8 +90,7 @@ export async function POST(req: Request) {
         break;
       }
 
-      // Se dispara en cada renovación automática, o si cambia el estado
-      // de la suscripción (por ejemplo, un cobro que falla).
+      // Renovación o cambio de estado de la suscripción
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         const item = sub.items.data[0];
@@ -119,9 +113,7 @@ export async function POST(req: Request) {
         break;
       }
 
-      // Se dispara cuando la suscripción se cancela definitivamente
-      // (desde el dashboard de Stripe, o cuando la implementemos desde
-      // nuestra propia web más adelante).
+      // Suscripción cancelada
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         await prisma.subscription.updateMany({
@@ -135,9 +127,7 @@ export async function POST(req: Request) {
         break;
     }
   } catch (error) {
-    // Devolvemos 200 igual: si le devolviéramos un error a Stripe,
-    // reintentaría este mismo evento más tarde. Preferimos loguear acá
-    // y revisar a mano si pasa algo raro.
+    // Se responde 200 para que Stripe no reintente el evento
     console.error("Error procesando el webhook de Stripe:", error);
   }
 

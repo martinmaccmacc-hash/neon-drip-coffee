@@ -38,16 +38,21 @@ function LoginForm() {
 
   return (
     <div>
-      <p className="font-mono text-sm text-neon-cyan">// login.tsx</p>
+      <p className="font-mono text-sm text-neon-cyan">{"// login.tsx"}</p>
       <h1 className="mt-2 mb-8 font-display text-2xl font-bold text-ink">
         Iniciar sesión
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="login-email"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Email
           </label>
           <input
+            id="login-email"
+            autoComplete="email"
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -57,7 +62,10 @@ function LoginForm() {
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label className="block font-mono text-xs text-dim">
+            <label
+              htmlFor="login-password"
+              className="block font-mono text-xs text-dim"
+            >
               Contraseña
             </label>
             <Link
@@ -68,6 +76,8 @@ function LoginForm() {
             </Link>
           </div>
           <input
+            id="login-password"
+            autoComplete="current-password"
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -76,7 +86,11 @@ function LoginForm() {
           />
         </div>
 
-        {error && <p className="font-mono text-sm text-neon-pink">{error}</p>}
+        {error && (
+        <p role="alert" className="font-mono text-sm text-neon-pink">
+          {error}
+        </p>
+      )}
 
         <button
           type="submit"

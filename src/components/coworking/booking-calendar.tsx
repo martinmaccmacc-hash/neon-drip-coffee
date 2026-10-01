@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createReservation } from "@/actions/reservation.actions";
+import { calculateReservationTotal, getHourlyRateFor } from "@/lib/coworking-pricing";
 import { formatPrice } from "@/lib/utils";
 
 const OPEN_HOUR = 8;
@@ -16,16 +17,30 @@ function toLocalDateInputValue(date: Date) {
   return local.toISOString().slice(0, 10);
 }
 
+// `units`: unidades seleccionables cuando el pod pertenece a un grupo
 export function BookingCalendar({
   pod,
+  units,
 }: {
-  pod: { id: string; name: string; hourlyRate: number; capacity: number };
+  units?: { id: string; label: string }[];
+  pod: {
+    id: string;
+    name: string;
+    hourlyRate: number;
+    capacity: number;
+    discountedHourlyRate?: number | null;
+    discountFromHours?: number | null;
+  };
 }) {
+  const unitList = units && units.length > 0 ? units : [{ id: pod.id, label: pod.name }];
+  const hasUnits = unitList.length > 1;
+
+  const [selectedPodId, setSelectedPodId] = useState(pod.id);
   const [date, setDate] = useState(() => toLocalDateInputValue(new Date()));
   const [duration, setDuration] = useState(1);
   const [attendees, setAttendees] = useState(1);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
-  const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
+  const [bookedByPod, setBookedByPod] = useState<Record<string, BookedSlot[]>>({});
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,17 +48,23 @@ export function BookingCalendar({
   useEffect(() => {
     let cancelled = false;
 
+    // Disponibilidad de todas las unidades del grupo en paralelo
     async function fetchAvailability() {
       setIsLoadingSlots(true);
       setSelectedHour(null);
       try {
-        const res = await fetch(
-          `/api/availability?podId=${pod.id}&date=${date}`
+        const entries = await Promise.all(
+          unitList.map(async (unit) => {
+            const res = await fetch(
+              `/api/availability?podId=${unit.id}&date=${date}`
+            );
+            const data = await res.json();
+            return [unit.id, (data.reservations ?? []) as BookedSlot[]] as const;
+          })
         );
-        const data = await res.json();
-        if (!cancelled) setBookedSlots(data.reservations ?? []);
+        if (!cancelled) setBookedByPod(Object.fromEntries(entries));
       } catch {
-        if (!cancelled) setBookedSlots([]);
+        if (!cancelled) setBookedByPod({});
       } finally {
         if (!cancelled) setIsLoadingSlots(false);
       }
@@ -53,10 +74,12 @@ export function BookingCalendar({
     return () => {
       cancelled = true;
     };
-  }, [date, pod.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
-  function isSlotFree(hour: number) {
+  function isSlotFree(hour: number, podId: string = selectedPodId) {
     if (hour + duration > CLOSE_HOUR) return false;
+    const bookedSlots = bookedByPod[podId] ?? [];
 
     const slotStart = new Date(
       `${date}T${String(hour).padStart(2, "0")}:00:00`
@@ -89,7 +112,7 @@ export function BookingCalendar({
     ).toISOString();
 
     const result = await createReservation({
-      cyberPodId: pod.id,
+      cyberPodId: selectedPodId,
       startTime,
       durationHours: duration,
       attendees,
@@ -101,21 +124,72 @@ export function BookingCalendar({
       return;
     }
 
-    // Igual que en el checkout de productos: mandamos a Stripe. La
-    // reserva ya quedó guardada como PENDING, y el webhook la confirma
-    // apenas Stripe avisa que el pago se hizo.
+    // Redirige a Stripe; el webhook confirma la reserva
     window.location.href = result.checkoutUrl;
   }
 
-  const total = pod.hourlyRate * duration;
+  const total = calculateReservationTotal(pod, duration);
+  const appliedHourlyRate = getHourlyRateFor(pod, duration);
+  const hasDiscount =
+    pod.discountedHourlyRate != null && pod.discountFromHours != null;
+  const discountApplied = hasDiscount && appliedHourlyRate === pod.discountedHourlyRate;
+
+  const selectedUnit = unitList.find((u) => u.id === selectedPodId);
 
   return (
     <div className="space-y-5 rounded-xl border border-line bg-surface p-6">
+      {hasUnits && (
+        <div>
+          <p id="unit-label" className="mb-2 font-mono text-xs text-dim">
+            Elegí tu pod
+          </p>
+          <div
+            role="group"
+            aria-labelledby="unit-label"
+            className="grid grid-cols-3 gap-2"
+          >
+            {unitList.map((unit) => {
+              const busyAtHour =
+                selectedHour !== null && !isSlotFree(selectedHour, unit.id);
+              const isSelected = unit.id === selectedPodId;
+              return (
+                <button
+                  key={unit.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPodId(unit.id);
+                    if (busyAtHour) setSelectedHour(null);
+                  }}
+                  aria-pressed={isSelected}
+                  title={busyAtHour ? "Ocupado en ese horario" : undefined}
+                  className={`rounded-lg border px-2 py-2 font-mono text-xs transition-colors ${
+                    isSelected
+                      ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
+                      : busyAtHour
+                        ? "border-line text-dim/40 line-through hover:text-dim"
+                        : "border-line text-dim hover:border-neon-cyan/50 hover:text-ink"
+                  }`}
+                >
+                  {unit.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 font-mono text-xs text-dim">
+            Los {unitList.length} pods tienen el mismo equipamiento.
+          </p>
+        </div>
+      )}
+
       <div>
-        <label className="mb-1 block font-mono text-xs text-dim">
+        <label
+          htmlFor="booking-date"
+          className="mb-1 block font-mono text-xs text-dim"
+        >
           Fecha
         </label>
         <input
+          id="booking-date"
           type="date"
           value={date}
           min={toLocalDateInputValue(new Date())}
@@ -125,10 +199,14 @@ export function BookingCalendar({
       </div>
 
       <div>
-        <label className="mb-1 block font-mono text-xs text-dim">
+        <label
+          htmlFor="booking-duration"
+          className="mb-1 block font-mono text-xs text-dim"
+        >
           Duración
         </label>
         <select
+          id="booking-duration"
           value={duration}
           onChange={(e) => setDuration(Number(e.target.value))}
           className="w-full rounded-lg border border-line bg-void px-3 py-2 text-sm text-ink outline-none focus:border-neon-cyan"
@@ -139,13 +217,24 @@ export function BookingCalendar({
             </option>
           ))}
         </select>
+        {hasDiscount && (
+          <p className="mt-1 font-mono text-xs text-neon-pink">
+            {discountApplied
+              ? `✓ Tarifa aplicada: ${formatPrice(pod.discountedHourlyRate!)}/hora (reserva de ${pod.discountFromHours}hs o más)`
+              : `A partir de ${pod.discountFromHours}hs: ${formatPrice(pod.discountedHourlyRate!)}/hora`}
+          </p>
+        )}
       </div>
 
       <div>
-        <label className="mb-1 block font-mono text-xs text-dim">
+        <label
+          htmlFor="booking-attendees"
+          className="mb-1 block font-mono text-xs text-dim"
+        >
           Personas (máx. {pod.capacity})
         </label>
         <input
+          id="booking-attendees"
           type="number"
           min={1}
           max={pod.capacity}
@@ -156,38 +245,56 @@ export function BookingCalendar({
       </div>
 
       <div>
-        <label className="mb-2 block font-mono text-xs text-dim">
+        <p id="hour-label" className="mb-2 font-mono text-xs text-dim">
           Horario disponible
-        </label>
+        </p>
         {isLoadingSlots ? (
           <p className="font-mono text-xs text-dim">Cargando horarios...</p>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {hourOptions.map((hour) => {
-              const free = isSlotFree(hour);
-              return (
-                <button
-                  key={hour}
-                  type="button"
-                  disabled={!free}
-                  onClick={() => setSelectedHour(hour)}
-                  className={`rounded-lg border px-2 py-2 font-mono text-xs transition-colors ${
-                    !free
-                      ? "cursor-not-allowed border-line text-dim/40 line-through"
-                      : selectedHour === hour
-                        ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
-                        : "border-line text-dim hover:border-neon-cyan/50 hover:text-ink"
-                  }`}
-                >
-                  {String(hour).padStart(2, "0")}:00
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div
+              role="group"
+              aria-labelledby="hour-label"
+              className="grid grid-cols-4 gap-2"
+            >
+              {hourOptions.map((hour) => {
+                const free = isSlotFree(hour);
+                return (
+                  <button
+                    key={hour}
+                    type="button"
+                    disabled={!free}
+                    onClick={() => setSelectedHour(hour)}
+                    aria-pressed={selectedHour === hour}
+                    className={`rounded-lg border px-2 py-2 font-mono text-xs transition-colors ${
+                      !free
+                        ? "cursor-not-allowed border-line text-dim/40 line-through"
+                        : selectedHour === hour
+                          ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
+                          : "border-line text-dim hover:border-neon-cyan/50 hover:text-ink"
+                    }`}
+                  >
+                    {String(hour).padStart(2, "0")}:00
+                  </button>
+                );
+              })}
+            </div>
+            {hasUnits && (
+              <p className="mt-2 font-mono text-xs text-dim">
+                Mostrando horarios de{" "}
+                <span className="text-neon-cyan">{selectedUnit?.label}</span>.
+                Si el que buscás está tachado, probá con otro pod.
+              </p>
+            )}
+          </>
         )}
       </div>
 
-      {error && <p className="font-mono text-sm text-neon-pink">{error}</p>}
+      {error && (
+        <p role="alert" className="font-mono text-sm text-neon-pink">
+          {error}
+        </p>
+      )}
 
       <div className="flex items-center justify-between border-t border-line pt-4">
         <span className="font-mono text-xs text-dim">Total</span>

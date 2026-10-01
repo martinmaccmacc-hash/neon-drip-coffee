@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { TIME_ZONE } from "@/lib/site-config";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente de pago",
@@ -50,6 +51,7 @@ export default async function OrdersPage() {
               </div>
               <p className="mt-1 font-mono text-xs text-dim">
                 {order.createdAt.toLocaleDateString("es-UY", {
+                  timeZone: TIME_ZONE,
                   day: "numeric",
                   month: "long",
                   year: "numeric",

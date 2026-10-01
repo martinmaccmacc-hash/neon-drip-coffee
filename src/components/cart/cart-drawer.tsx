@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, Trash2, X } from "lucide-react";
 import { useCartStore, useCartTotal } from "@/store/cart-store";
@@ -14,6 +15,16 @@ export function CartDrawer() {
   const pendingSubscription = useCartStore((s) => s.pendingSubscription);
   const clearSubscription = useCartStore((s) => s.clearSubscription);
   const total = useCartTotal();
+
+  // Cierra con Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeCart();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, closeCart]);
 
   if (!isOpen) return null;
 
@@ -32,12 +43,23 @@ export function CartDrawer() {
         aria-hidden="true"
       />
 
-      <aside className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col border-l border-line bg-surface shadow-2xl">
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-title"
+        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col border-l border-line bg-surface shadow-2xl"
+      >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="font-display text-lg font-bold text-ink">Tu carrito</h2>
+          <h2
+            id="cart-title"
+            className="font-display text-lg font-bold text-ink"
+          >
+            Tu carrito
+          </h2>
           <button
             type="button"
             onClick={closeCart}
+            autoFocus
             className="text-dim transition-colors hover:text-neon-pink"
             aria-label="Cerrar carrito"
           >

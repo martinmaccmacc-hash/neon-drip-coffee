@@ -2,11 +2,6 @@
 
 import type { MenuVariant } from "@/types";
 
-// Componente "tonto" (no maneja su propio estado): recibe qué variante
-// está seleccionada y una función `onChange`, y solo avisa cuando el
-// usuario toca una opción distinta. El padre (ProductCard) es quien
-// decide qué hacer con esa información. Este patrón se llama
-// "lifting state up" — subir el estado al componente padre.
 export function VariantSelector({
   variants,
   selectedId,

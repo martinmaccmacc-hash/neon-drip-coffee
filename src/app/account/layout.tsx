@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { AccountNav } from "@/components/account/account-nav";
+
+export const metadata: Metadata = {
+  title: "Mi cuenta",
+  robots: { index: false, follow: false },
+};
 
 export default function AccountLayout({
   children,

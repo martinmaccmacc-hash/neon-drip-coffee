@@ -12,6 +12,7 @@ import {
   type ForgotPasswordInput,
   type ResetPasswordInput,
 } from "@/lib/validations/auth.schema";
+import { SITE_URL } from "@/lib/site-config";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -63,10 +64,7 @@ export async function requestPasswordReset(
     where: { email: parsed.data.email },
   });
 
-  // Siempre devolvemos éxito, exista o no el usuario. Si dijéramos "ese
-  // email no está registrado", cualquiera podría usar este formulario para
-  // averiguar qué emails tienen cuenta — una fuga de información chica
-  // pero real, conocida como "user enumeration".
+  // Respuesta genérica para evitar user enumeration
   if (!user || !user.passwordHash) {
     return { success: true };
   }
@@ -79,14 +77,12 @@ export async function requestPasswordReset(
     data: { resetToken: token, resetTokenExpiry: expiry },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = SITE_URL;
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
   try {
     await sendPasswordResetEmail(user.email, resetUrl);
   } catch (error) {
-    // No le mostramos el error real al usuario, por la misma razón de
-    // arriba — pero sí lo logueamos nosotros para poder debuguear.
     console.error("Error enviando email de reseteo:", error);
   }
 

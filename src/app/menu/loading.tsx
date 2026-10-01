@@ -1,7 +1,3 @@
-// Next.js muestra este archivo automáticamente mientras `page.tsx` está
-// esperando la respuesta de `await prisma.product.findMany()` — no hace
-// falta ningún código extra para conectarlo, solo el nombre del archivo
-// ("loading.tsx") dentro de la misma carpeta que "page.tsx".
 export default function MenuLoading() {
   return (
     <main className="min-h-screen bg-void px-6 py-16 md:px-12">

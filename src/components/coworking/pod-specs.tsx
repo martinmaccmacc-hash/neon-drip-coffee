@@ -1,9 +1,4 @@
-// Muestra la ficha técnica completa de un Cyber-Pod (el campo `specsNote`
-// que agregamos en el schema), separada en secciones legibles.
-//
-// El texto de `specsNote` guarda los bloques separados por una línea en
-// blanco ("\n\n"). Dentro de cada bloque, la primera línea es el título
-// (con emoji) y el resto son las líneas de detalle.
+// Ficha técnica: bloques separados por línea en blanco; la primera línea es el título
 
 export function PodSpecs({ specsNote }: { specsNote: string | null }) {
   if (!specsNote) return null;

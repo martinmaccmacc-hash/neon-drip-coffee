@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCartStore, useCartTotal } from "@/store/cart-store";
@@ -23,15 +23,16 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (session?.user) {
-      setForm((prev) => ({
-        ...prev,
-        customerName: prev.customerName || session.user?.name || "",
-        customerEmail: prev.customerEmail || session.user?.email || "",
-      }));
-    }
-  }, [session]);
+  // Precarga nombre y email una sola vez, cuando la sesión está disponible
+  const [prefilled, setPrefilled] = useState(false);
+  if (session?.user && !prefilled) {
+    setPrefilled(true);
+    setForm((prev) => ({
+      ...prev,
+      customerName: prev.customerName || session.user?.name || "",
+      customerEmail: prev.customerEmail || session.user?.email || "",
+    }));
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -60,9 +61,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Ahora TODO pasa por Stripe — productos, suscripción, o ambos juntos
-    // en la misma pantalla de pago. El carrito recién se limpia en la
-    // pantalla de éxito, una vez que Stripe confirma (ver ClearCartOnMount).
+    // El pago se procesa en Stripe; el carrito se vacía en la página de éxito
     window.location.href = result.checkoutUrl;
   }
 
@@ -144,6 +143,7 @@ export default function CheckoutPage() {
               label="Nombre completo"
               value={form.customerName}
               onChange={(v) => setForm({ ...form, customerName: v })}
+              autoComplete="name"
               required
             />
             <Field
@@ -151,19 +151,26 @@ export default function CheckoutPage() {
               type="email"
               value={form.customerEmail}
               onChange={(v) => setForm({ ...form, customerEmail: v })}
+              autoComplete="email"
               required
             />
             <Field
               label="Teléfono"
+              type="tel"
               value={form.customerPhone}
               onChange={(v) => setForm({ ...form, customerPhone: v })}
+              autoComplete="tel"
               required
             />
             <div>
-              <label className="mb-1 block font-mono text-xs text-dim">
+              <label
+                htmlFor="checkout-notes"
+                className="mb-1 block font-mono text-xs text-dim"
+              >
                 Notas (opcional)
               </label>
               <textarea
+                id="checkout-notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={3}
@@ -173,7 +180,9 @@ export default function CheckoutPage() {
             </div>
 
             {error && (
-              <p className="font-mono text-sm text-neon-pink">{error}</p>
+              <p role="alert" className="font-mono text-sm text-neon-pink">
+                {error}
+              </p>
             )}
 
             <button
@@ -195,19 +204,26 @@ function Field({
   value,
   onChange,
   type = "text",
+  autoComplete,
   required,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  autoComplete?: string;
   required?: boolean;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="mb-1 block font-mono text-xs text-dim">{label}</label>
+      <label htmlFor={id} className="mb-1 block font-mono text-xs text-dim">
+        {label}
+      </label>
       <input
+        id={id}
         type={type}
+        autoComplete={autoComplete}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}

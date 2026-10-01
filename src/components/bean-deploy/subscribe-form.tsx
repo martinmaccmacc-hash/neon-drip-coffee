@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart-store";
 import { AddressSearch, type ParsedAddress } from "./address-search";
@@ -46,9 +46,7 @@ export function SubscribeForm({
     lng: number;
   } | null>(null);
 
-  // Cuando el usuario elige una sugerencia del buscador, autocompletamos
-  // los 5 campos de siempre — pero los dejamos editables igual, por si
-  // Mapbox no tiene el dato exacto para esa dirección puntual.
+  // Autocompleta la dirección; los campos siguen siendo editables
   function handleAddressSelect(parsed: ParsedAddress) {
     setAddress({
       street: parsed.street,
@@ -86,15 +84,20 @@ export function SubscribeForm({
       className="space-y-5 rounded-xl border border-line bg-surface p-6"
     >
       <div>
-        <label className="mb-2 block font-mono text-xs text-dim">
+        <p id="roast-label" className="mb-2 font-mono text-xs text-dim">
           Preferencia de tostado
-        </label>
-        <div className="flex flex-wrap gap-2">
+        </p>
+        <div
+          role="group"
+          aria-labelledby="roast-label"
+          className="flex flex-wrap gap-2"
+        >
           {ROAST_OPTIONS.map((opt) => (
             <button
               key={opt.label}
               type="button"
               onClick={() => setRoastPreference(opt.value)}
+              aria-pressed={roastPreference === opt.value}
               className={`rounded-full border px-3 py-1 font-mono text-xs transition-colors ${
                 roastPreference === opt.value
                   ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
@@ -108,10 +111,14 @@ export function SubscribeForm({
       </div>
 
       <div>
-        <label className="mb-2 block font-mono text-xs text-dim">
+        <label
+          htmlFor="grind-preference"
+          className="mb-2 block font-mono text-xs text-dim"
+        >
           Molienda
         </label>
         <select
+          id="grind-preference"
           value={grindPreference}
           onChange={(e) => setGrindPreference(e.target.value as GrindPref)}
           className="w-full rounded-lg border border-line bg-void px-3 py-2 text-sm text-ink outline-none focus:border-neon-cyan"
@@ -186,10 +193,14 @@ function AddressField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="mb-1 block font-mono text-xs text-dim">{label}</label>
+      <label htmlFor={id} className="mb-1 block font-mono text-xs text-dim">
+        {label}
+      </label>
       <input
+        id={id}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}

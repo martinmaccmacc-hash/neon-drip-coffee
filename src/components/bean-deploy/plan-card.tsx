@@ -8,10 +8,6 @@ const FREQUENCY_LABEL: Record<string, string> = {
   MONTHLY: "Cada mes",
 };
 
-// Este componente NO tiene "use client": no necesita interactividad propia
-// (solo un Link), así que puede quedarse como Server Component y recibir
-// el objeto `plan` de Prisma directo, Decimal incluido — nunca cruza al
-// navegador, así que no hay problema de serialización acá.
 export function PlanCard({ plan }: { plan: SubscriptionPlan }) {
   return (
     <div className="flex flex-col rounded-xl border border-line bg-surface p-6">

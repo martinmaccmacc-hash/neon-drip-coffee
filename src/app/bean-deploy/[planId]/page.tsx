@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
@@ -10,6 +12,24 @@ const FREQUENCY_LABEL: Record<string, string> = {
   BIWEEKLY: "Cada 2 semanas",
   MONTHLY: "Cada mes",
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ planId: string }>;
+}): Promise<Metadata> {
+  const { planId } = await params;
+  const plan = await prisma.subscriptionPlan.findUnique({
+    where: { id: planId },
+  });
+  if (!plan) return { title: "Plan no encontrado" };
+
+  return {
+    title: `${plan.name} — Bean Deploy`,
+    description: plan.description,
+    alternates: { canonical: `/bean-deploy/${plan.id}` },
+  };
+}
 
 export default async function BeanDeployPlanPage({
   params,
@@ -33,8 +53,18 @@ export default async function BeanDeployPlanPage({
     <main className="min-h-screen bg-void px-6 py-16 md:px-12">
       <div className="mx-auto grid max-w-4xl gap-12 md:grid-cols-2">
         <section>
+          <div className="relative mb-8 aspect-[4/3] overflow-hidden rounded-2xl border border-line">
+            <Image
+              src="/images/bean-deploy-bag.jpg"
+              alt="Bolsa de café Neon Ethiopia de Neon Drip Coffee"
+              fill
+              priority
+              sizes="(min-width: 768px) 448px, 100vw"
+              className="object-cover"
+            />
+          </div>
           <p className="font-mono text-sm text-neon-cyan">
-            // {plan.name.toLowerCase()}
+            {"// "}{plan.name.toLowerCase()}
           </p>
           <h1 className="mt-2 font-display text-3xl font-bold text-ink">
             {plan.name}

@@ -1,7 +1,5 @@
-// Utilidades compartidas por toda la app.
 
-// Formatea un número como precio en pesos uruguayos.
-// Ejemplo: formatPrice(190) -> "$ 190"
+// Formatea un monto en pesos uruguayos
 export function formatPrice(amount: number): string {
   return new Intl.NumberFormat("es-UY", {
     style: "currency",

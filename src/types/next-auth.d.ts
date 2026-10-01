@@ -1,8 +1,6 @@
 import type { DefaultSession } from "next-auth";
 
-// Por defecto, Auth.js no sabe que nuestro User tiene un campo "role" —
-// esto le enseña a TypeScript que session.user.role y token.role existen,
-// para que no se queje en cada archivo donde los usamos.
+// Extiende los tipos de Auth.js con el rol del usuario
 declare module "next-auth" {
   interface User {
     role?: string;

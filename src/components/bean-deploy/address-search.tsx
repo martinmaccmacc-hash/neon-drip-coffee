@@ -21,9 +21,7 @@ export type ParsedAddress = {
   longitude: number;
 };
 
-// Mapbox devuelve la dirección "desarmada" en un array `context`, con ids
-// como "postcode.123", "place.456", "region.789" — esta función busca cada
-// pedazo por su prefijo y arma un objeto plano con nuestros campos.
+// Extrae los campos de dirección del array `context` de Mapbox
 function parseFeature(feature: MapboxFeature): ParsedAddress {
   const context = feature.context ?? [];
   const find = (prefix: string) =>
@@ -52,18 +50,16 @@ export function AddressSearch({
     null
   );
 
+  // Con menos de 4 caracteres no se muestran sugerencias
+  const visibleSuggestions = query.trim().length < 4 ? [] : suggestions;
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Buscamos recién 350ms después de que la persona deja de tipear — sin
-  // esto, dispararíamos una consulta a Mapbox en CADA letra, gastando
-  // cuota gratis sin necesidad.
+  // Debounce de 350 ms para no consultar Mapbox en cada tecla
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (query.trim().length < 4) {
-      setSuggestions([]);
-      return;
-    }
+    if (query.trim().length < 4) return;
 
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
@@ -96,21 +92,23 @@ export function AddressSearch({
     onSelect(parsed);
   }
 
-  // Usamos la API de "mapas estáticos" de Mapbox: es solo una URL de
-  // imagen (un <img> normal), no una librería de mapas interactiva. Mucho
-  // más liviano para lo que necesitamos acá, que es solo confirmar
-  // visualmente "sí, es este lugar".
+  // Mapa estático de Mapbox para confirmar la ubicación
   const staticMapUrl = preview
     ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-s+ec4899(${preview.lng},${preview.lat})/${preview.lng},${preview.lat},15,0/400x200@2x?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`
     : null;
 
   return (
     <div>
-      <label className="mb-1 block font-mono text-xs text-dim">
+      <label
+        htmlFor="address-search"
+        className="mb-1 block font-mono text-xs text-dim"
+      >
         Buscar dirección
       </label>
       <div className="relative">
         <input
+          id="address-search"
+          autoComplete="street-address"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -118,9 +116,9 @@ export function AddressSearch({
           className="w-full rounded-lg border border-line bg-void px-3 py-2 text-sm text-ink outline-none focus:border-neon-cyan"
         />
 
-        {suggestions.length > 0 && (
+        {visibleSuggestions.length > 0 && (
           <ul className="absolute z-10 mt-1 w-full rounded-lg border border-line bg-surface shadow-lg">
-            {suggestions.map((feature) => (
+            {visibleSuggestions.map((feature) => (
               <li key={feature.id}>
                 <button
                   type="button"

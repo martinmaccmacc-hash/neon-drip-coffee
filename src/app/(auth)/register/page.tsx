@@ -25,8 +25,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Registro exitoso: lo logueamos automáticamente, sin hacerlo escribir
-    // sus datos dos veces.
     await signIn("credentials", {
       email: form.email,
       password: form.password,
@@ -40,16 +38,21 @@ export default function RegisterPage() {
 
   return (
     <div>
-      <p className="font-mono text-sm text-neon-cyan">// register.tsx</p>
+      <p className="font-mono text-sm text-neon-cyan">{"// register.tsx"}</p>
       <h1 className="mt-2 mb-8 font-display text-2xl font-bold text-ink">
         Crear cuenta
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="register-name"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Nombre completo
           </label>
           <input
+            id="register-name"
+            autoComplete="name"
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -58,10 +61,15 @@ export default function RegisterPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="register-email"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Email
           </label>
           <input
+            id="register-email"
+            autoComplete="email"
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -70,10 +78,15 @@ export default function RegisterPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block font-mono text-xs text-dim">
+          <label
+            htmlFor="register-password"
+            className="mb-1 block font-mono text-xs text-dim"
+          >
             Contraseña
           </label>
           <input
+            id="register-password"
+            autoComplete="new-password"
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -83,7 +96,11 @@ export default function RegisterPage() {
           />
         </div>
 
-        {error && <p className="font-mono text-sm text-neon-pink">{error}</p>}
+        {error && (
+        <p role="alert" className="font-mono text-sm text-neon-pink">
+          {error}
+        </p>
+      )}
 
         <button
           type="submit"

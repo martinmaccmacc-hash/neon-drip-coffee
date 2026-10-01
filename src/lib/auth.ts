@@ -20,9 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: credentials.email as string },
         });
 
-        // Si no existe, o existe pero es un usuario "invitado" (se creó
-        // solo con el checkout de Click & Collect y nunca puso contraseña),
-        // no puede loguearse todavía.
+        // Los usuarios invitados (sin contraseña) no pueden iniciar sesión
         if (!user || !user.passwordHash) return null;
 
         const isValid = await bcrypt.compare(
@@ -43,12 +41,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    // Estos dos callbacks corren en Node.js (nunca en el Edge), por eso
-    // pueden vivir tranquilos acá y no en auth.config.ts.
     async jwt({ token, user }) {
-      // `user` solo viene definido en el momento del login. En cada
-      // pedido posterior, viene undefined y usamos lo que ya guardamos
-      // en el token la primera vez.
+      // `user` solo existe en el login; después se usa el token
       if (user) {
         token.id = user.id as string;
         token.role = user.role as string;

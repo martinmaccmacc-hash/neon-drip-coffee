@@ -5,12 +5,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe, toStripeRecurring } from "@/lib/stripe";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validations/order.schema";
+import { SITE_URL } from "@/lib/site-config";
 
 type CreateOrderResult =
   | { success: true; checkoutUrl: string }
   | { success: false; error: string };
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = SITE_URL;
 
 export async function createOrder(
   input: CheckoutInput
@@ -60,9 +61,6 @@ export async function createOrder(
       userEmail = user.email;
     }
 
-    // Armamos los "line items" de Stripe: uno por cada producto del
-    // carrito, más uno recurrente si hay una suscripción — todo en UNA
-    // sola Checkout Session, sin importar la combinación.
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
     let order: { id: string; orderNumber: string } | null = null;
@@ -173,10 +171,7 @@ export async function createOrder(
       return { success: false, error: "No hay nada para procesar" };
     }
 
-    // Cliente de Stripe: lo creamos una sola vez por usuario (solo hace
-    // falta si hay una suscripción de por medio) y lo reutilizamos en
-    // futuras compras — así todo queda agrupado bajo el mismo perfil en
-    // el dashboard de Stripe.
+    // Reutiliza el customer de Stripe del usuario (requerido para suscripciones)
     let stripeCustomerId: string | null = null;
 
     if (subscription) {
@@ -202,15 +197,12 @@ export async function createOrder(
     if (planName) successParams.set("subscriptionPlan", planName);
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      // Si hay suscripción, la sesión ENTERA tiene que ser modo
-      // "subscription" — ahí Stripe permite mezclar el ítem recurrente
-      // con los ítems únicos de productos en la misma sesión.
+      // Con suscripción, la sesión es de tipo subscription (admite también ítems únicos)
       mode: subscription ? "subscription" : "payment",
       customer: stripeCustomerId ?? undefined,
       customer_email: stripeCustomerId ? undefined : customerEmail,
       line_items: lineItems,
-      // Este metadata es lo único que necesita el webhook para saber qué
-      // crear/actualizar cuando el pago se confirme.
+      // Datos que usa el webhook para crear o actualizar registros al confirmar el pago
       metadata: {
         orderId: order?.id ?? "",
         userId,

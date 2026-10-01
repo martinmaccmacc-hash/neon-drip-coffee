@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/availability?podId=xxx&date=2026-08-15
-// Devuelve las reservas existentes de ese pod para ese día, para que el
-// calendario del cliente sepa qué horarios tachar. Es un Route Handler
-// (no un Server Action) porque el calendario necesita volver a pedirlo
-// dinámicamente cada vez que el usuario cambia de fecha — es un GET
-// típico, no una mutación disparada por un formulario.
+// GET /api/availability?podId=&date= → reservas del pod para ese día
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const podId = searchParams.get("podId");
@@ -19,8 +14,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const dayStart = new Date(`${date}T00:00:00`);
-  const dayEnd = new Date(`${date}T23:59:59`);
+  // Margen de ±1 día: el cliente calcula el solapamiento exacto en su zona horaria
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const dayStart = new Date(new Date(`${date}T00:00:00Z`).getTime() - DAY_MS);
+  const dayEnd = new Date(new Date(`${date}T23:59:59Z`).getTime() + DAY_MS);
 
   const reservations = await prisma.reservation.findMany({
     where: {

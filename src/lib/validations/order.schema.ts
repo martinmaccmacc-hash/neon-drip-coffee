@@ -16,7 +16,7 @@ const subscriptionInCheckoutSchema = z.object({
     city: z.string().min(2),
     state: z.string().min(2),
     zipCode: z.string().min(4),
-    // Vienen solo si el usuario usó el buscador con mapa (Mapbox).
+    // Solo si la dirección se eligió con el buscador
     latitude: z.number().optional(),
     longitude: z.number().optional(),
   }),
