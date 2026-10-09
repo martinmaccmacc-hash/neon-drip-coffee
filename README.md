@@ -194,7 +194,7 @@ Para mí, el valor de este proyecto está en lo que aprendí construyéndolo: c�
 **Martin Castillo** — estudiante de desarrollo full-stack.
 
 - GitHub: [@martinmaccmacc-hash](https://github.com/martinmaccmacc-hash)
-<!-- Agregá tu LinkedIn -->
+- Linkedin: www.linkedin.com/in/martin-castillo-dev1996
 
 ---
 
