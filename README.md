@@ -6,7 +6,9 @@
 
 Aplicación web full-stack para una cafetería de especialidad **ficticia** con estética cyberpunk en Montevideo. Es un proyecto personal de portfolio, pensado para practicar cómo se construye un producto real de punta a punta: catálogo, pagos, suscripciones, reservas y cuentas de usuario.
 
-🔗 **Demo:** _próximamente_
+🔗 **Demo:** [neon-drip-coffee.vercel.app](https://neon-drip-coffee.vercel.app)
+
+> Los pagos funcionan en **modo de prueba** de Stripe: podés comprar o reservar con la tarjeta `4242 4242 4242 4242`, cualquier fecha futura y cualquier CVC. No se cobra dinero real.
 
 ---
 
@@ -73,7 +75,62 @@ prisma/
 
 ## Cómo correrlo localmente
 
-**Requisitos:** Git, Node.js 20+ y cuentas gratuitas en Supabase, Stripe, Resend y Mapbox.
+### 1. Instalar las herramientas
+
+Necesitás **Git** (para descargar el código) y **Node.js** (para ejecutarlo; trae incluido `npm`). Si ya los tenés, saltá a la verificación.
+
+**Windows**
+
+1. Descargá e instalá **Git** desde [git-scm.com/download/win](https://git-scm.com/download/win). Las opciones por defecto del instalador están bien.
+2. Descargá e instalá **Node.js** en su versión **LTS** desde [nodejs.org](https://nodejs.org/). Instala también `npm`.
+3. Cerrá y volvé a abrir la terminal (PowerShell o la de VS Code) para que reconozca los programas nuevos.
+
+**macOS**
+
+```bash
+xcode-select --install   # instala Git
+```
+
+Y Node.js LTS desde [nodejs.org](https://nodejs.org/), o con Homebrew: `brew install node`.
+
+**Linux (Ubuntu/Debian)**
+
+```bash
+sudo apt update && sudo apt install git
+```
+
+Para Node.js se recomienda [nvm](https://github.com/nvm-sh/nvm): después de instalarlo, `nvm install --lts`.
+
+**Verificación:** estos comandos tienen que mostrar un número de versión.
+
+```bash
+git --version
+node -v    # 20.9 o superior
+npm -v
+```
+
+> **Windows: si `npm` muestra un error de "ejecución de scripts deshabilitada"**, abrí PowerShell y ejecutá esto una vez:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
+
+Como editor se recomienda [Visual Studio Code](https://code.visualstudio.com/) (opcional).
+
+### 2. Crear las cuentas y obtener las claves
+
+El proyecto usa servicios externos con plan gratuito. Cada uno da una clave que va en el archivo `.env`:
+
+| Servicio | Para qué se usa | Variables en `.env` | Dónde se obtiene |
+| --- | --- | --- | --- |
+| [Supabase](https://supabase.com/) | Base de datos PostgreSQL | `DATABASE_URL`, `DIRECT_URL` | Proyecto → botón **Connect** → cadenas de conexión (pooler y directa) |
+| [Stripe](https://stripe.com/) | Pagos (modo test) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Dashboard → **Developers → API keys**. El webhook secret lo muestra `stripe listen` (ver paso 4) |
+| [Resend](https://resend.com/) | Emails de recuperación de contraseña | `RESEND_API_KEY` | Dashboard → **API Keys** |
+| [Mapbox](https://www.mapbox.com/) | Buscador de direcciones y mapa | `NEXT_PUBLIC_MAPBOX_TOKEN` | Cuenta → **Access tokens** (el token público por defecto) |
+
+Además, `AUTH_SECRET` se genera con `npx auth secret` (después del paso 3), y `NEXT_PUBLIC_APP_URL` queda como `http://localhost:3000` para trabajar en local.
+
+### 3. Clonar, instalar y ejecutar
 
 ```bash
 # 1. Clonar el repositorio y entrar a la carpeta
@@ -83,8 +140,8 @@ cd neon-drip-coffee
 # 2. Instalar dependencias
 npm install
 
-# 3. Configurar variables de entorno
-cp .env.example .env   # y completar los valores
+# 3. Crear el archivo de variables de entorno y completarlo con las claves del paso 2
+cp .env.example .env   # en CMD de Windows: copy .env.example .env
 
 # 4. Crear las tablas y cargar datos de ejemplo
 npx prisma migrate dev
@@ -96,13 +153,15 @@ npm run dev
 
 La app queda disponible en [http://localhost:3000](http://localhost:3000).
 
-Para probar los pagos en local, reenviá los webhooks con la [CLI de Stripe](https://docs.stripe.com/stripe-cli):
+### 4. (Opcional) Probar los pagos
+
+Instalá la [CLI de Stripe](https://docs.stripe.com/stripe-cli), iniciá sesión con `stripe login` y, con la app corriendo, reenviá los webhooks a tu entorno local:
 
 ```bash
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
-Y usá la tarjeta de prueba `4242 4242 4242 4242`, con cualquier fecha futura y cualquier CVC.
+El comando muestra un secreto que empieza con `whsec_`: copialo en `STRIPE_WEBHOOK_SECRET` dentro de `.env` y reiniciá `npm run dev`. Para pagar, usá la tarjeta de prueba `4242 4242 4242 4242`, con cualquier fecha futura y cualquier CVC.
 
 ### Notas
 
@@ -125,7 +184,7 @@ Para mí, el valor de este proyecto está en lo que aprendí construyéndolo: c�
 
 ## Próximos pasos
 
-- [ ] Publicar la demo en Vercel
+- [x] Publicar la demo en Vercel
 - [ ] Panel de administración para gestionar productos, pedidos y reservas
 - [ ] Cancelación de reservas desde la web
 - [ ] Tests automatizados (unitarios y end-to-end)
