@@ -25,7 +25,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "¿Puedo cancelar o cambiar una reserva?",
-    a: `Por ahora las reservas no se modifican desde la web. Escribinos a ${SITE.email} con la mayor anticipación posible y lo resolvemos.`,
+    a: `Sí: entrás a "Mi cuenta" → "Reservas" y la cancelás hasta 2 horas antes del inicio. Te devolvemos el total a la misma tarjeta (puede demorar unos días en verse según tu banco). Para cambiar el horario, cancelá y reservá de nuevo.`,
   },
   {
     q: "¿Cómo funciona Bean Deploy?",
@@ -78,7 +78,7 @@ export function Faq() {
             ¿No encontrás lo que buscás? Escribinos a{" "}
             <a
               href={`mailto:${SITE.email}`}
-              className="text-neon-cyan underline-offset-4 hover:underline"
+              className="text-neon-cyan underline underline-offset-4 hover:text-ink"
             >
               {SITE.email}
             </a>

@@ -94,7 +94,7 @@ export function GalleryCarousel() {
               src={slide.src}
               alt={slide.alt}
               fill
-              sizes="(min-width: 768px) 76vw, 85vw"
+              sizes="(min-width: 1152px) 876px, (min-width: 768px) 76vw, 85vw"
               className="object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-void/90 via-void/10 to-transparent" />
@@ -132,7 +132,7 @@ export function GalleryCarousel() {
       </button>
 
       {/* Indicadores */}
-      <div className="mt-6 flex justify-center gap-2">
+      <div className="mt-4 flex justify-center gap-1">
         {SLIDES.map((slide, i) => (
           <button
             key={slide.src}
@@ -140,10 +140,17 @@ export function GalleryCarousel() {
             onClick={() => goTo(i)}
             aria-label={`Ir a la foto ${i + 1}: ${slide.caption}`}
             aria-current={i === active}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === active ? "w-8 bg-neon-cyan" : "w-3 bg-line hover:bg-dim"
-            }`}
-          />
+            className="group flex h-6 items-center px-1"
+          >
+            {/* Área táctil de 24px; la barra visible sigue siendo fina */}
+            <span
+              className={`block h-1.5 rounded-full transition-all duration-300 ${
+                i === active
+                  ? "w-8 bg-neon-cyan"
+                  : "w-3 bg-line group-hover:bg-dim"
+              }`}
+            />
+          </button>
         ))}
       </div>
     </div>

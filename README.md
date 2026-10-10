@@ -19,7 +19,7 @@ Aplicación web full-stack para una cafetería de especialidad **ficticia** con 
 | **Click & Collect** | Pedir café y repostería desde el menú, pagar online y retirar en barra. |
 | **Bean Deploy** | Suscribirse a envíos periódicos de café de especialidad (semanal, quincenal o mensual), con buscador de direcciones y mapa. |
 | **Cyber-Pods** | Reservar espacios de coworking por hora: elegir pod, fecha, duración y horario disponible. Precio con descuento automático en reservas largas. |
-| **Mi cuenta** | Registro, inicio de sesión, recuperación de contraseña e historial de pedidos, suscripciones y reservas. |
+| **Mi cuenta** | Registro, inicio de sesión, recuperación de contraseña e historial de pedidos, suscripciones y reservas. Cancelación de suscripciones y de reservas (con reembolso automático). |
 
 ## Capturas
 
@@ -52,7 +52,9 @@ Aplicación web full-stack para una cafetería de especialidad **ficticia** con 
 
 - **El precio se calcula siempre en el servidor.** El cliente muestra una estimación, pero el monto que se cobra lo recalcula el servidor con los datos de la base, usando la misma función pura (`src/lib/coworking-pricing.ts`).
 - **Sin reservas duplicadas.** La verificación de horario disponible y la creación de la reserva ocurren dentro de una misma transacción de base de datos.
-- **Pagos confirmados por webhook.** Pedidos, reservas y suscripciones quedan en estado `PENDING` hasta que Stripe confirma el pago mediante un webhook con firma verificada.
+- **Reservas que no bloquean de más.** Una reserva pendiente de pago retiene el horario solo 35 minutos; el Checkout de Stripe vence antes (31 min), así un pago abandonado libera el horario y un pago tardío nunca confirma un lugar ya liberado.
+- **Cancelación con reembolso.** Hasta 2 horas antes del inicio, el usuario cancela desde "Mi cuenta" y el servidor reembolsa el pago en Stripe con una _idempotency key_ para evitar reembolsos duplicados.
+- **Pagos confirmados por webhook.** Pedidos, reservas y suscripciones quedan en estado `PENDING` hasta que Stripe confirma el pago mediante un webhook con firma verificada, que además ignora eventos repetidos.
 - **Un solo checkout para todo.** El carrito puede combinar productos y una suscripción en la misma sesión de pago de Stripe.
 - **Seed idempotente.** `prisma/seed.ts` usa `upsert`, así puede ejecutarse varias veces sin duplicar datos ni romper reservas o suscripciones existentes.
 - **Rutas protegidas.** `src/proxy.ts` usa una configuración liviana de Auth.js (sin Prisma) para proteger `/account` y `/admin` antes de renderizar la página.
@@ -186,7 +188,7 @@ Para mí, el valor de este proyecto está en lo que aprendí construyéndolo: c�
 
 - [x] Publicar la demo en Vercel
 - [ ] Panel de administración para gestionar productos, pedidos y reservas
-- [ ] Cancelación de reservas desde la web
+- [x] Cancelación de reservas desde la web
 - [ ] Tests automatizados (unitarios y end-to-end)
 
 ## Autor

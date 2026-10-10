@@ -59,6 +59,7 @@ export default async function BeanDeployPlanPage({
               alt="Bolsa de café Neon Ethiopia de Neon Drip Coffee"
               fill
               priority
+              fetchPriority="high"
               sizes="(min-width: 768px) 448px, 100vw"
               className="object-cover"
             />

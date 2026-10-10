@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { blockingReservationWhere } from "@/lib/reservation-rules";
 
 // GET /api/availability?podId=&date= → reservas del pod para ese día
 export async function GET(request: NextRequest) {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   const reservations = await prisma.reservation.findMany({
     where: {
       cyberPodId: podId,
-      status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+      ...blockingReservationWhere(),
       startTime: { lt: dayEnd },
       endTime: { gt: dayStart },
     },

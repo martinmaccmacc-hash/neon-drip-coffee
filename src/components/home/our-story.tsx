@@ -27,7 +27,7 @@ export function OurStory() {
             src="/images/hero-salon.png"
             alt="Salón de Neon Drip Coffee, con la barra de café y la zona de Cyber-Pods"
             fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
+            sizes="(min-width: 1152px) 540px, (min-width: 1024px) 50vw, calc(100vw - 48px)"
             className="object-cover"
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-void/90 to-transparent p-5">

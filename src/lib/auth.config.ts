@@ -2,6 +2,8 @@ import type { NextAuthConfig } from "next-auth";
 
 // Config compatible con el Edge Runtime (sin Prisma), usada por proxy.ts
 export default {
+  // Confía en el host de la request (necesario con `npm start` fuera de Vercel)
+  trustHost: true,
   pages: {
     signIn: "/login",
   },

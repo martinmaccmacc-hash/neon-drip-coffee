@@ -2,8 +2,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
-import type { Reservation, CyberPod } from "@prisma/client";
+import type { Reservation, CyberPod, Payment } from "@prisma/client";
 import { TIME_ZONE } from "@/lib/site-config";
+import {
+  CANCELLATION_NOTICE_HOURS,
+  canCancelReservation,
+  isExpiredPending,
+} from "@/lib/reservation-rules";
+import { CancelReservationButton } from "@/components/account/cancel-reservation-button";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente de pago",
@@ -13,7 +19,18 @@ const STATUS_LABEL: Record<string, string> = {
   NO_SHOW: "No asistió",
 };
 
-type ReservationWithPod = Reservation & { cyberPod: CyberPod };
+type ReservationWithPod = Reservation & {
+  cyberPod: CyberPod;
+  payment: Payment | null;
+};
+
+function statusLabel(r: ReservationWithPod, now: Date) {
+  if (isExpiredPending(r, now)) return "Pago no completado";
+  if (r.status === "CANCELLED" && r.payment?.status === "REFUNDED") {
+    return "Cancelada · reembolsada";
+  }
+  return STATUS_LABEL[r.status] ?? r.status;
+}
 
 export default async function ReservationsPage() {
   const session = await auth();
@@ -21,17 +38,15 @@ export default async function ReservationsPage() {
 
   const reservations = await prisma.reservation.findMany({
     where: { userId: session.user.id },
-    include: { cyberPod: true },
+    include: { cyberPod: true, payment: true },
     orderBy: { startTime: "desc" },
   });
 
   const now = new Date();
-  const upcoming = reservations.filter(
-    (r) => r.startTime >= now && r.status !== "CANCELLED"
-  );
-  const past = reservations.filter(
-    (r) => r.startTime < now || r.status === "CANCELLED"
-  );
+  const isUpcoming = (r: ReservationWithPod) =>
+    r.startTime >= now && r.status !== "CANCELLED" && !isExpiredPending(r, now);
+  const upcoming = reservations.filter(isUpcoming);
+  const past = reservations.filter((r) => !isUpcoming(r));
 
   return (
     <div>
@@ -49,12 +64,17 @@ export default async function ReservationsPage() {
       ) : (
         <>
           {upcoming.length > 0 && (
-            <ReservationGroup title="Próximas" reservations={upcoming} />
+            <ReservationGroup
+              title="Próximas"
+              reservations={upcoming}
+              now={now}
+            />
           )}
           {past.length > 0 && (
             <ReservationGroup
               title="Anteriores"
               reservations={past}
+              now={now}
               className="mt-8"
             />
           )}
@@ -67,10 +87,12 @@ export default async function ReservationsPage() {
 function ReservationGroup({
   title,
   reservations,
+  now,
   className = "",
 }: {
   title: string;
   reservations: ReservationWithPod[];
+  now: Date;
   className?: string;
 }) {
   return (
@@ -87,7 +109,7 @@ function ReservationGroup({
                 {r.cyberPod.name}
               </h3>
               <span className="font-mono text-xs uppercase text-neon-pink">
-                {STATUS_LABEL[r.status] ?? r.status}
+                {statusLabel(r, now)}
               </span>
             </div>
             <div className="mt-3 space-y-1 border-t border-line pt-3 font-mono text-sm">
@@ -125,6 +147,20 @@ function ReservationGroup({
                 </span>
               </div>
             </div>
+
+            {canCancelReservation(r, now) ? (
+              <div className="mt-4 border-t border-line pt-4">
+                <CancelReservationButton reservationId={r.id} />
+              </div>
+            ) : (
+              r.status === "CONFIRMED" &&
+              r.startTime > now && (
+                <p className="mt-4 border-t border-line pt-4 font-mono text-xs text-dim">
+                  Faltan menos de {CANCELLATION_NOTICE_HOURS} horas: ya no se
+                  puede cancelar.
+                </p>
+              )
+            )}
           </div>
         ))}
       </div>

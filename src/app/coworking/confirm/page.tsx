@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { TIME_ZONE } from "@/lib/site-config";
@@ -22,12 +23,14 @@ export default async function CoworkingConfirmPage({
     );
   }
 
+  const session = await auth();
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
     include: { cyberPod: true, user: true },
   });
 
-  if (!reservation) {
+  // Solo el dueño de la reserva puede ver el detalle
+  if (!reservation || reservation.userId !== session?.user?.id) {
     return <EmptyState message="No encontramos esa reserva." />;
   }
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { blockingReservationWhere } from "@/lib/reservation-rules";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -21,7 +22,7 @@ export default async function AccountPage() {
       prisma.reservation.count({
         where: {
           userId: session.user.id,
-          status: { in: ["PENDING", "CONFIRMED"] },
+          ...blockingReservationWhere(),
           startTime: { gte: new Date() },
         },
       }),

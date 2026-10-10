@@ -171,26 +171,10 @@ export async function createOrder(
       return { success: false, error: "No hay nada para procesar" };
     }
 
-    // Reutiliza el customer de Stripe del usuario (requerido para suscripciones)
-    let stripeCustomerId: string | null = null;
-
-    if (subscription) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      stripeCustomerId = user?.stripeCustomerId ?? null;
-
-      if (!stripeCustomerId) {
-        const customer = await stripe.customers.create({
-          email: userEmail,
-          name: customerName,
-          metadata: { userId },
-        });
-        stripeCustomerId = customer.id;
-        await prisma.user.update({
-          where: { id: userId },
-          data: { stripeCustomerId },
-        });
-      }
-    }
+    // Customer de Stripe del usuario (requerido para suscripciones)
+    const stripeCustomerId = subscription
+      ? await getOrCreateStripeCustomer(userId, userEmail, customerName)
+      : null;
 
     const successParams = new URLSearchParams();
     if (order) successParams.set("order", order.orderNumber);
@@ -223,4 +207,34 @@ export async function createOrder(
       error: "Ocurrió un error al procesar tu pedido. Intentá de nuevo.",
     };
   }
+}
+
+// Reutiliza el customer guardado si sigue existiendo en la cuenta de Stripe
+// actual; si no (otra clave o fue borrado), crea uno nuevo y lo guarda.
+async function getOrCreateStripeCustomer(
+  userId: string,
+  email: string,
+  name: string
+): Promise<string> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (user?.stripeCustomerId) {
+    const existing = await stripe.customers
+      .retrieve(user.stripeCustomerId)
+      .catch(() => null);
+    if (existing && !existing.deleted) return existing.id;
+  }
+
+  const customer = await stripe.customers.create({
+    email,
+    name,
+    metadata: { userId },
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { stripeCustomerId: customer.id },
+  });
+
+  return customer.id;
 }

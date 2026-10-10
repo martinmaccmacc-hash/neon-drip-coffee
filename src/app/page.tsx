@@ -65,6 +65,7 @@ export default function Home() {
           alt="Fachada de Neon Drip Coffee de noche, con cartel de neón rosa y la vidriera con borde neón cian, mostrando la zona de Cyber-Pods"
           fill
           priority
+          fetchPriority="high"
           className="object-cover"
         />
         <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-b from-transparent to-void" />
@@ -195,7 +196,7 @@ export default function Home() {
               src="/images/bites-flatlay.jpg"
               alt="Glitch Brownie con hilos de chocolate rosa, The Cookie Exception e Infinite Loop Donut sobre pizarra negra"
               fill
-              sizes="(min-width: 768px) 50vw, 100vw"
+              sizes="(min-width: 1152px) 540px, (min-width: 768px) 50vw, calc(100vw - 48px)"
               className="object-cover"
             />
           </div>
@@ -369,7 +370,7 @@ function FeatureRow({
           src={image.src}
           alt={image.alt}
           fill
-          sizes="(min-width: 768px) 50vw, 100vw"
+          sizes="(min-width: 1152px) 540px, (min-width: 768px) 50vw, calc(100vw - 48px)"
           style={{ objectPosition: image.position }}
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />

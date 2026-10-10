@@ -30,11 +30,18 @@ export async function POST(req: Request) {
 
   try {
     switch (event.type) {
-      // Pago inicial confirmado (pedido y/o primer cobro de suscripción)
+      // Pago confirmado: pedido, reserva y/o primer cobro de suscripción
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const { orderId, userId, subscriptionPlanId, addressId, roastPreference, grindPreference } =
-          session.metadata ?? {};
+        const {
+          orderId,
+          reservationId,
+          userId,
+          subscriptionPlanId,
+          addressId,
+          roastPreference,
+          grindPreference,
+        } = session.metadata ?? {};
 
         const paymentIntentId =
           typeof session.payment_intent === "string"
@@ -58,6 +65,28 @@ export async function POST(req: Request) {
               stripePaymentIntentId: paymentIntentId,
             },
           });
+        }
+
+        // --- Reserva de Cyber-Pod ---
+        if (reservationId) {
+          // Solo confirma si sigue pendiente (evita duplicados si Stripe reenvía el evento)
+          const { count } = await prisma.reservation.updateMany({
+            where: { id: reservationId, status: "PENDING" },
+            data: { status: "CONFIRMED" },
+          });
+
+          if (count > 0) {
+            await prisma.payment.create({
+              data: {
+                reservationId,
+                provider: "STRIPE",
+                status: "SUCCEEDED",
+                amount: (session.amount_total ?? 0) / 100,
+                currency: (session.currency ?? "uyu").toUpperCase(),
+                stripePaymentIntentId: paymentIntentId,
+              },
+            });
+          }
         }
 
         // --- Suscripción (Bean Deploy) ---

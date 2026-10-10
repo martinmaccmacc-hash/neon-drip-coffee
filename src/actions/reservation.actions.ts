@@ -1,6 +1,5 @@
 "use server";
 
-import type { ReservationStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
@@ -9,17 +8,18 @@ import {
   reservationSchema,
   type ReservationInput,
 } from "@/lib/validations/reservation.schema";
-import { SITE_URL } from "@/lib/site-config";
+import { SITE, SITE_URL } from "@/lib/site-config";
+import {
+  CANCELLATION_NOTICE_HOURS,
+  CHECKOUT_EXPIRES_MINUTES,
+  blockingReservationWhere,
+  canCancelReservation,
+} from "@/lib/reservation-rules";
 
 type CreateReservationResult =
   | { success: true; checkoutUrl: string }
   | { success: false; error: string };
 
-const BLOCKING_STATUSES: ReservationStatus[] = [
-  "PENDING",
-  "CONFIRMED",
-  "COMPLETED",
-];
 const APP_URL = SITE_URL;
 
 export async function createReservation(
@@ -75,7 +75,7 @@ export async function createReservation(
       const overlapping = await tx.reservation.findFirst({
         where: {
           cyberPodId,
-          status: { in: BLOCKING_STATUSES },
+          ...blockingReservationWhere(),
           startTime: { lt: end },
           endTime: { gt: start },
         },
@@ -116,6 +116,7 @@ export async function createReservation(
       ],
       customer_email: session.user.email ?? undefined,
       metadata: { type: "reservation", reservationId: reservation.id },
+      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_EXPIRES_MINUTES * 60,
       success_url: `${APP_URL}/coworking/confirm?reservation=${reservation.id}`,
       cancel_url: `${APP_URL}/coworking/${cyberPodId}`,
     });
@@ -132,6 +133,71 @@ export async function createReservation(
     return {
       success: false,
       error: "Ocurrió un error al procesar tu reserva",
+    };
+  }
+}
+
+type CancelReservationResult =
+  | { success: true; refunded: boolean }
+  | { success: false; error: string };
+
+// Cancela una reserva confirmada y reembolsa el pago completo en Stripe
+export async function cancelReservation(
+  reservationId: string
+): Promise<CancelReservationResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return { success: false, error: "Tenés que iniciar sesión" };
+  }
+
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { payment: true },
+  });
+
+  if (!reservation || reservation.userId !== session.user.id) {
+    return { success: false, error: "No encontramos esa reserva" };
+  }
+
+  if (!canCancelReservation(reservation)) {
+    return {
+      success: false,
+      error: `Solo se puede cancelar hasta ${CANCELLATION_NOTICE_HOURS} horas antes del inicio`,
+    };
+  }
+
+  const payment = reservation.payment;
+  if (!payment?.stripePaymentIntentId) {
+    return {
+      success: false,
+      error: `No encontramos el pago de esta reserva. Escribinos a ${SITE.email}`,
+    };
+  }
+
+  try {
+    // La idempotency key evita un doble reembolso si se reintenta
+    await stripe.refunds.create(
+      { payment_intent: payment.stripePaymentIntentId },
+      { idempotencyKey: `refund-reservation-${reservation.id}` }
+    );
+
+    await prisma.$transaction([
+      prisma.reservation.update({
+        where: { id: reservation.id },
+        data: { status: "CANCELLED" },
+      }),
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "REFUNDED" },
+      }),
+    ]);
+
+    return { success: true, refunded: true };
+  } catch (error) {
+    console.error("Error cancelando la reserva:", error);
+    return {
+      success: false,
+      error: "No pudimos cancelar la reserva. Intentá de nuevo.",
     };
   }
 }
