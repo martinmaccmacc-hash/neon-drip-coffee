@@ -145,6 +145,7 @@ export default function Home() {
               src: "/images/cyber-latte.jpg",
               alt: "Cyber-Latte con latte art geométrico sobre la barra, con carteles de neón de fondo",
               position: "50% 70%",
+              ratio: 928 / 1152,
             }}
             accent="cyan"
           />
@@ -163,6 +164,7 @@ export default function Home() {
               src: "/images/bean-deploy-bag.jpg",
               alt: "Bolsa de café Neon Ethiopia de Neon Drip Coffee rodeada de granos tostados",
               position: "50% 50%",
+              ratio: 1024 / 1024,
             }}
             accent="purple"
             reverse
@@ -182,6 +184,7 @@ export default function Home() {
               src: "/images/cyber-pod-alpha.jpg",
               alt: "Interior del Cyber-Pod Alpha-3: escritorio de madera con monitor, laptop, teclado y silla ergonómica bajo luz neón cian",
               position: "50% 50%",
+              ratio: 1264 / 848,
             }}
             accent="pink"
           />
@@ -336,6 +339,15 @@ const ACCENTS = {
 } as const;
 
 // Fila de servicio: imagen + texto, alterna lados en desktop
+// Con object-cover, una foto más ancha que su contenedor se dibuja más grande
+// que la caja: se pide ese ancho real para que no se vea pixelada.
+// Caja: 4:3 en mobile y 4:5 desde md (máx. 540px de ancho).
+function coverSizes(ratio: number) {
+  const mobile = Math.max(1, 0.75 * ratio);
+  const desktop = Math.max(1, 1.25 * ratio);
+  return `(min-width: 1152px) ${Math.round(540 * desktop)}px, (min-width: 768px) ${Math.round(50 * desktop)}vw, ${Math.round(100 * mobile)}vw`;
+}
+
 function FeatureRow({
   number,
   eyebrow,
@@ -353,7 +365,7 @@ function FeatureRow({
   description: string;
   bullets: string[];
   cta: { href: string; label: string };
-  image: { src: string; alt: string; position: string };
+  image: { src: string; alt: string; position: string; ratio: number };
   accent: keyof typeof ACCENTS;
   reverse?: boolean;
 }) {
@@ -370,7 +382,7 @@ function FeatureRow({
           src={image.src}
           alt={image.alt}
           fill
-          sizes="(min-width: 1152px) 540px, (min-width: 768px) 50vw, calc(100vw - 48px)"
+          sizes={coverSizes(image.ratio)}
           style={{ objectPosition: image.position }}
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />

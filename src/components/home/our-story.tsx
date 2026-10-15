@@ -23,11 +23,12 @@ export function OurStory() {
     >
       <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-line shadow-[0_0_80px_-20px_rgba(34,211,238,0.35)] lg:aspect-[4/5]">
+          {/* Foto 16:9 recortada en caja 4:5 (lg) o 4:3: se pide el ancho que realmente ocupa */}
           <Image
             src="/images/hero-salon.png"
             alt="Salón de Neon Drip Coffee, con la barra de café y la zona de Cyber-Pods"
             fill
-            sizes="(min-width: 1152px) 540px, (min-width: 1024px) 50vw, calc(100vw - 48px)"
+            sizes="(min-width: 1152px) 1200px, (min-width: 1024px) 111vw, 133vw"
             className="object-cover"
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-void/90 to-transparent p-5">
