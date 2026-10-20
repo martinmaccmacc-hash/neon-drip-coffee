@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { MenuProduct } from "@/types";
 import { VariantSelector } from "./variant-selector";
 import { formatPrice } from "@/lib/utils";
@@ -31,7 +32,7 @@ export function ProductCard({ product }: { product: MenuProduct }) {
     .toUpperCase();
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors hover:border-neon-purple/60">
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors hover:border-neon-purple/60">
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-2">
         <span className="h-2.5 w-2.5 rounded-full bg-neon-pink/70" />
         <span className="h-2.5 w-2.5 rounded-full bg-neon-cyan/70" />
@@ -41,11 +42,26 @@ export function ProductCard({ product }: { product: MenuProduct }) {
         </span>
       </div>
 
+      {product.imageUrl && (
+        <div className="relative aspect-[5/4] overflow-hidden border-b border-line">
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            fill
+            sizes="(min-width: 1152px) 368px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, calc(100vw - 48px)"
+            className="object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-4 flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-neon-purple to-neon-cyan font-display text-lg font-bold text-void">
-            {initials}
-          </div>
+          {/* Sin foto: avatar con las iniciales del producto */}
+          {!product.imageUrl && (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-neon-purple to-neon-cyan font-display text-lg font-bold text-void">
+              {initials}
+            </div>
+          )}
           <div>
             <h3 className="font-display text-lg font-semibold leading-tight text-ink">
               {product.name}

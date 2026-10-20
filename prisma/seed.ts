@@ -32,14 +32,19 @@ type ProductSeed = {
   tastingNotes?: string;
   basePrice: number;
   isSubscribable?: boolean;
+  imageUrl?: string;
   variants: VariantSeed[];
 };
+
+// Foto del producto en /public/images/products (las bolsas de Bean Deploy no tienen)
+const productImage = (slug: string) => `/images/products/${slug}.jpg`;
 
 // 1. Core Brews (precios en UYU)
 
 const coreBrews: ProductSeed[] = [
   {
     slug: "stack-overflow-espresso",
+    imageUrl: productImage("stack-overflow-espresso"),
     name: "Stack Overflow Espresso",
     description:
       "Espresso doble, puro y directo. Sin errores, sin humo, sin excusas.",
@@ -51,6 +56,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "cyber-latte",
+    imageUrl: productImage("cyber-latte"),
     name: "Cyber-Latte",
     description:
       "Latte tradicional con un toque de jarabe de lavanda casero y latte art geométrico.",
@@ -66,6 +72,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "cold-brew-null-pointer",
+    imageUrl: productImage("cold-brew-null-pointer"),
     name: 'Cold Brew "Null Pointer"',
     description:
       "Extraído en frío durante 18 horas. Suave, refrescante, con notas a chocolate amargo.",
@@ -80,6 +87,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "the-monolith-cappuccino",
+    imageUrl: productImage("the-monolith-cappuccino"),
     name: "The Monolith (Cappuccino)",
     description:
       "Capuchino perfectamente balanceado, con espuma texturizada y polvo de cacao.",
@@ -94,6 +102,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "404-mocha-not-found",
+    imageUrl: productImage("404-mocha-not-found"),
     name: "404 Mocha Not Found",
     description:
       "Espresso, chocolate belga derretido y leche vaporizada. Encontrado, y delicioso.",
@@ -108,6 +117,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "async-affogato",
+    imageUrl: productImage("async-affogato"),
     name: "Async Affogato",
     description:
       "Un shot de espresso caliente cae sobre helado de vainilla artesanal. Ejecución no bloqueante.",
@@ -119,6 +129,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "kernel-panic-cortado",
+    imageUrl: productImage("kernel-panic-cortado"),
     name: "Kernel Panic Cortado",
     description:
       "Espresso cortado con leche vaporizada en partes iguales. Intenso, corto, sin errores de segmentación.",
@@ -130,6 +141,7 @@ const coreBrews: ProductSeed[] = [
   },
   {
     slug: "git-blame-frappe",
+    imageUrl: productImage("git-blame-frappe"),
     name: "Git Blame Frappé",
     description:
       "Café frío batido con hielo. Vas a querer culpar a alguien por lo rico que está.",
@@ -260,6 +272,7 @@ const beanBags: ProductSeed[] = [
 const pastries: ProductSeed[] = [
   {
     slug: "glitch-brownie",
+    imageUrl: productImage("glitch-brownie"),
     name: "Glitch Brownie",
     description:
       "Brownie de chocolate belga con hilos de chocolate rosa y polvo de oro comestible.",
@@ -269,6 +282,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "the-cookie-exception",
+    imageUrl: productImage("the-cookie-exception"),
     name: "The Cookie Exception",
     description: "Galleta gigante de chispas de tres tipos de chocolate, servida tibia.",
     category: ProductCategory.PASTRY,
@@ -277,6 +291,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "opensource-toast",
+    imageUrl: productImage("opensource-toast"),
     name: "OpenSource Toast",
     description:
       "Tostada de masa madre con aguacate machacado, huevo ponchado, sésamo negro y un toque de chile.",
@@ -286,6 +301,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "stack-trace-scone",
+    imageUrl: productImage("stack-trace-scone"),
     name: "Stack Trace Scone",
     description: "Scone de manteca con arándanos: cada capa cuenta una parte del error.",
     category: ProductCategory.PASTRY,
@@ -294,6 +310,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "merge-conflict-muffin",
+    imageUrl: productImage("merge-conflict-muffin"),
     name: "Merge Conflict Muffin",
     description: "Muffin de chocolate y arándanos que decidieron no resolver sus diferencias.",
     category: ProductCategory.PASTRY,
@@ -302,6 +319,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "404-croissant-not-found",
+    imageUrl: productImage("404-croissant-not-found"),
     name: "404 Croissant Not Found",
     description: "Croissant de manteca clásico. Simplemente no lo vas a encontrar en ningún otro lado.",
     category: ProductCategory.PASTRY,
@@ -310,6 +328,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "infinite-loop-donut",
+    imageUrl: productImage("infinite-loop-donut"),
     name: "Infinite Loop Donut",
     description:
       "Dona esponjosa con glaseado rosa y chispas de colores neón. Una vez que empezás, no parás.",
@@ -319,6 +338,7 @@ const pastries: ProductSeed[] = [
   },
   {
     slug: "buffer-overflow-bagel",
+    imageUrl: productImage("buffer-overflow-bagel"),
     name: "Buffer Overflow Bagel",
     description: "Bagel con queso crema, tanto que se desborda por los costados.",
     category: ProductCategory.PASTRY,
@@ -341,6 +361,7 @@ async function seedProducts(products: ProductSeed[]) {
       tastingNotes: p.tastingNotes,
       basePrice: p.basePrice,
       isSubscribable: p.isSubscribable ?? false,
+      imageUrl: p.imageUrl ?? null,
     };
 
     const product = await prisma.product.upsert({

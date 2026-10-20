@@ -19,5 +19,6 @@ export type MenuProduct = {
   intensity: number | null;
   origin: string | null;
   tastingNotes: string | null;
+  imageUrl: string | null;
   variants: MenuVariant[];
 };

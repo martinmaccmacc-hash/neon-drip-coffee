@@ -44,6 +44,7 @@ export default async function MenuPage() {
     intensity: p.intensity,
     origin: p.origin,
     tastingNotes: p.tastingNotes,
+    imageUrl: p.imageUrl,
     variants: p.variants.map((v) => ({
       id: v.id,
       name: v.name,
